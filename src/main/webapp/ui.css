@@ -1,0 +1,143 @@
+body {
+  font-family: verdana, helvetica, arial, sans-serif;
+  font-size: 14px;
+  color: #404040;
+}
+
+h1,h2,h3,h4 {
+  color: #98bf21;
+}
+
+#inputText textarea {
+  margin: 2px;
+  height: 150px;
+  width: 700px;
+}
+
+#nerImplCoreNLPCoref {
+  margin-left: 30px;
+}
+
+#nerPostProcess {
+  margin-top: 15px;
+}
+
+#inputText button {
+  margin-top: 10px;
+}
+
+/* http://stackoverflow.com/questions/2346011/jquery-scroll-to-an-element-within-an-overflowed-div */
+#processedText {
+  white-space: pre-line;
+  height: 300px;
+  overflow: auto;
+  border: grey solid 1px;
+  position: relative;
+}
+
+#entities {
+  height: 300px;
+  overflow: auto;
+  border: grey solid 1px;
+}
+
+th {
+  text-align: left;
+}
+
+th:nth-of-type(1) {
+  width: 200px;
+}
+
+th:nth-of-type(2) {
+  width: 90px;
+}
+
+input[type='text'] {
+  width: 300px;
+}
+
+input.hidden {
+  visibility: hidden;
+}
+
+.person {
+  outline: 2px solid green;
+}
+
+.organization {
+  outline: 2px solid blue;
+}
+
+.date,.time {
+  outline: 2px solid brown;
+}
+
+.location {
+  outline: 2px solid DarkOrange;
+}
+
+.number,.money,.percent {
+  outline: 2px solid Indigo;
+}
+
+.highlight {
+  background-color: yellow;
+}
+
+span.redacted {
+  text-decoration: line-through;
+}
+
+/* D3 tree styles */
+
+#tree-container {
+  margin-top: 10px;
+  width: 100%;
+  height: 600px;
+}
+
+.node {
+  cursor: pointer;
+}
+
+.overlay {
+  background-color: #EEE;
+}
+
+.node circle {
+  fill: #fff;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+.node text {
+  font-size: 10px;
+  font-family: sans-serif;
+}
+
+.link {
+  fill: none;
+  stroke: #ccc;
+  stroke-width: 1.5px;
+}
+
+.templink {
+  fill: none;
+  stroke: red;
+  stroke-width: 3px;
+}
+
+.ghostCircle.show {
+  display: block;
+}
+
+.ghostCircle,.activeDrag .ghostCircle {
+  display: none;
+}
+
+/* not used - append icon to indicate an external link that opens in a new window
+a[target=_blank]:after {
+  content: url(http://upload.wikimedia.org/wikipedia/commons/6/64/Icon_External_Link.png);
+  margin: 0 0 0 5px;
+} */
