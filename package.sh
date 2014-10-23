@@ -8,7 +8,7 @@ rm -rf tmp
 for n in redact
 do
     mkdir -p tmp/$n/data
-    src=`echo target/$n-*.war`
+    src=`echo target/scala-2.11/$n_*.war`
     echo "Creating $n.tar.gz ..."
     cp $src tmp/$n/$n.war
     tar cfz $n.tar.gz -C tmp $n
