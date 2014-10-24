@@ -63,9 +63,9 @@ This software is released under the terms of the [AGPL](http://www.gnu.org/licen
 
 ###Run
 
-To run the webapp from sbt (unresolved OutOfMemoryError - needs to fork a jvm with -Xmx3g):
+To run the webapp from sbt (this and the unit tests need lots of memory, hence the -J-Xmx bit):
 
-    sbt
+    sbt -J-Xmx3G
     > container:start
     
 ... or install target/scala-2.11/redact_2.11-0.1.war (as redact.war) in the container of your choice.
