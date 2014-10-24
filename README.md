@@ -51,9 +51,9 @@ Note that an item to be redacted is specified by page based character offsets in
 
 See also: [t3as-pdf](https://github.com/NICTA/t3as-pdf) which provides the PDF functionality used by this project.
 
-### License
+### Legal
 
-This software is released under the terms of the [AGPL](http://www.gnu.org/licenses/agpl-3.0.en.html).
+This software is released under the terms of the [AGPL](http://www.gnu.org/licenses/agpl-3.0.en.html). Source code for all transitive dependencies is available at [t3as-legal](https://github.com/NICTA/t3as-legal).
 
 ### Build
 
