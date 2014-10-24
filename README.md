@@ -57,7 +57,7 @@ This software is released under the terms of the [AGPL](http://www.gnu.org/licen
 
 ### Build
 
- Build and publish to your local Ivy repository:
+ Build and publish to your local Ivy repository (but this depends on  [t3as-pdf](https://github.com/NICTA/t3as-pdf) so do that first):
  
     sbt publishLocal
 
