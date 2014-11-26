@@ -1,16 +1,8 @@
-function debug() {
-  console.log(arguments);
-}
-
-function ajaxError(jqXHR, textStatus, errorThrown) {
-  debug('ajaxError: jqXHR =', jqXHR, 'textStatus =', textStatus, 'errorThrown =', errorThrown);
-}
-
 // class to insert markup into input string
 function Markup(input) {
   this.input = input;
   this.output = input; // marked up text
-  this.offsets = []; // array of { inputIdx: orig index, offset: number of chars inserted inserted at this point }
+  this.offsets = []; // array of { inputIdx: orig index, offset: number of chars inserted at this point }
 }
 
 // insert text at input index pos
@@ -58,10 +50,6 @@ function markup(data, text) {
 }
 
 var pdfFile;
-// var redactBaseUrl = '/redact/rest/v1.0'; // for prod leave out the host part so browser will use same server we came from
-// var redactBaseUrl = 'http://localhost:8080/redact/rest/v1.0'; // for dev use localhost so it will work when we come from a file:// url
-var redactBaseUrl = 'http://redaction.research.nicta.com.au:8080/redact/rest/v1.0'; // for dev use prod host so it will work when we come from a file:// url
-var nictaNerUrl = 'http://ner.t3as.org/nicta-ner-web/rest/v1.0/ner';
 
 function clearResults() {
   var p = $('#processedText');
@@ -110,7 +98,7 @@ function extractText(ev) {
   
   $.ajax({
     type : 'POST',
-    url : redactBaseUrl + '/extractText',
+    url : baseUrl + '/extractText',
     data :  formData,
     contentType: false, // http://abandon.ie/notebook/simple-file-uploads-using-jquery-ajax, https://github.com/Abban/jQueryFileUpload/blob/master/script.js
     processData: false,
@@ -133,56 +121,40 @@ function processText(ev) {
   debug('processText: ev =', ev);
   ev.preventDefault();
   
-  var p = clearResults();
-
+  var elem = clearResults();
   var txt = $('#inputText textarea').val();  
-  switch ($('#inputText input[name=nerImpl]:checked').attr('id')) {
-  case 'nerImplOpenNLP':
-    namedEntityRecognition(redactBaseUrl + '/opennlp/json', txt, false);
-	  break;
-  case 'nerImplCoreNLPCoref':
-    namedEntityRecognition(redactBaseUrl + '/corenlp/json', txt, true);
-    break;
-  case 'nerImplCoreNLP':
-    namedEntityRecognition(redactBaseUrl + '/corenlp/json', txt, false);
-    break;
-  default:
-    namedEntityRecognitionNicta(txt);
-    break;
+
+  function genContentPP(elem, data) {
+    genContent(elem, txt, $('#nerPostProcess').is(':checked') ? postProcess(data) : data);
   }
   
-  p.append($('<img>').attr({src: "ajax-loader.gif", alt: "spinner"})); // add spinner unless exception
-}
-
-function namedEntityRecognition(url, txt, withCoref) {
-  $.ajax({
-    type : 'POST',
-    url : url,
-    contentType : 'application/json; charset=UTF-8',
-    data :  JSON.stringify( {text: txt, withCoref: withCoref} ),
-    dataType : 'json',
-    success : function(data, textStatus, jqXHR) {
-      debug('namedEntityRecognition success:', 'data =', data, 'textStatus =', textStatus, 'jqXHR =', jqXHR);
-      handleResult(data, txt);
-    },
-    error : ajaxError
-  });
-}
-
-function namedEntityRecognitionNicta(txt) {
-  debug('namedEntityRecognitionNicta:', 'txt =', txt);
-  $.ajax({
-    type : 'POST',
-    url : nictaNerUrl,
-    contentType : 'application/x-www-form-urlencoded; charset=UTF-8',
-    data : encodeURIComponent(txt),
-    dataType : 'json',
-    success : function(data, textStatus, jqXHR) {
-      debug('namedEntityRecognitionNicta success:', 'data =', data, 'textStatus =', textStatus, 'jqXHR =', jqXHR);
-      handleResult(transformNictaNER(data, txt), txt);
-    },
-    error : ajaxError
-  });
+  switch ($('#inputText input[name=nerImpl]:checked').attr('id')) {
+  case 'nerImplOpenNLP':
+    ajaxPost(baseUrl + '/opennlp/json', {text: txt, withCoref: false}, elem, genContentPP) 
+	  break;
+  case 'nerImplCoreNLPCoref':
+    ajaxPost(baseUrl + '/corenlp/json', {text: txt, withCoref: true}, elem, genContentPP) 
+    break;
+  case 'nerImplCoreNLP':
+    ajaxPost(baseUrl + '/corenlp/json', {text: txt, withCoref: false}, elem, genContentPP) 
+    break;
+  default:
+    elem.empty();
+    addSpinner(elem);
+    $.ajax({
+      type : 'POST',
+      url : 'http://ner.t3as.org/nicta-ner-web/rest/v1.0/ner',
+      contentType : 'application/x-www-form-urlencoded; charset=UTF-8',
+      data : encodeURIComponent(txt),
+      dataType : 'json',
+      success : function(data, textStatus, jqXHR) {
+        debug('namedEntityRecognitionNicta success:', 'data =', data, 'textStatus =', textStatus, 'jqXHR =', jqXHR);
+        genContentPP(elem, transformNictaNER(data, txt));
+      },
+      error : ajaxError
+    });
+    break;
+  };
 }
 
 /**
@@ -223,53 +195,30 @@ function transformNictaNER(data, txt) {
 };
 
 
-var namedEntities;
-
-function handleResult(data, txt) {
-  if ($('#nerPostProcess').is(':checked')) data = postProcess(data);
-  namedEntities = data.namedEntities;
-  
-  var p = $('#processedText');
-  p.empty();
-  p.append(markup(data, txt));
-
-  var treeData = toTreeData(data);
-  debug('handleResult:', 'treeData =', treeData);
-  updateTree = updateTree(treeData); // create/update tree, return function to update existing tree
-  // $("#tree-container text").on("mouseenter", highlight).on("mouseleave", unhighlight);
-  
-  $.each(tableConfig, function(idx, p) {
-    populate(p.parent, p.classes, p.label, data);
-  });
-  $("#entities input[type='text']").attr('class', 'hidden'); // reason hidden until checkbox ticked
-  $("#entities span[ref]").on("mouseenter", highlightEv).on("mouseleave", unhighlightEv);
-  $("#entities input[type='checkbox']").on('change', redact);
-}
-
 /**
  * Set of String values.
  */
 function Set() {
   this.obj = {};
   this.splitRe = / +/;
-}
+};
 Set.prototype.add = function(k) {
   this.obj[k] = k;
-}
+};
 Set.prototype.contains = function(k) {
   return k in this.obj;
-}
+};
 /** Split s into words and add each word */
 Set.prototype.addWords = function(s) {
   var w = s.split(this.splitRe);
   for (var i = 0; i < w.length; i++) { this.add(w[i]); };
-}
+};
 /** Split s into words and return true iff we contain all the words */
 Set.prototype.containsWords = function(s) {
   var w = s.split(this.splitRe);
   for (var i = 0; i < w.length; i++) { if (!this.contains(w[i])) return false; };
   return true;
-}
+};
 
 /**
  * Heuristic post processing of NER result.
@@ -364,6 +313,26 @@ function postProcess(data) {
   return r;
 }
 
+var savedData;
+
+function genContent(elem, txt, data) {
+  savedData = data;
+  elem.empty();
+  elem.append(markup(data, txt));
+
+  var treeData = toTreeData(data);
+  debug('genContent:', 'treeData =', treeData);
+  updateTree = updateTree(treeData); // create/update tree, return function to update existing tree
+  // $("#tree-container text").on("mouseenter", highlight).on("mouseleave", unhighlight);
+  
+  $.each(tableConfig, function(idx, p) {
+    populate(p.parent, p.classes, p.label, data);
+  });
+  $("#entities input[type='text']").attr('class', 'hidden'); // reason hidden until checkbox ticked
+  $("#entities span[ref]").on("mouseenter", highlightEv).on("mouseleave", unhighlightEv);
+  $("#entities input[type='checkbox']").on('change', redact);
+};
+
 /**
  * Transform data in format of CoreNLP service to a tree for display by dndTree.js
  * @param data
@@ -414,7 +383,7 @@ function toTreeData(data) {
 function populate(parent, classes, label, data) {
   var td = function(s) { return $('<td>').append(s); };
   var rows = $.map(data.namedEntities, function(x, idx) {
-    debug('populate.map:', 'classes =', classes, 'x.ner =', x.ner);
+    // debug('populate.map:', 'classes =', classes, 'x.ner =', x.ner);
     if (classes.indexOf(x.ner) === -1) return undefined;
     // createTextNode properly escapes the text
     return $('<tr>').append(
@@ -425,7 +394,7 @@ function populate(parent, classes, label, data) {
         td($('<input>').attr({ type : 'text', ref : idx }))
       );
   });
-  debug('populate:', 'rows.length =', rows.length, 'rows =', rows);
+  // debug('populate:', 'rows.length =', rows.length, 'rows =', rows);
   
   parent.empty();
   if (rows.length > 0) {
@@ -448,10 +417,9 @@ function populate(parent, classes, label, data) {
 }
 
 function getEvAttr(ev, name) {
-  var t = $(ev.target);
-  var val = t.attr(name);
-  debug('get: ev =', ev, name, '=', val);
   ev.preventDefault();
+  var val = $(ev.target).attr(name);
+  // debug('get: ev =', ev, name, '=', val);
   return val;
 }
 
@@ -497,7 +465,7 @@ function redact(ev) {
 
 function redactPdf(ev) {
   var redact = $.map($("#entities input[type='checkbox']:checked"), function(x, idx) {
-    var ne = namedEntities[$(x).attr('ref')]; // lookup namedEntity using each checkbox ref attr
+    var ne = savedData.namedEntities[$(x).attr('ref')]; // lookup namedEntity using each checkbox ref attr
     // flatten the representative ne and its coRefs
     var arr = [];
     arr.push(ne.representative);
@@ -509,28 +477,136 @@ function redactPdf(ev) {
   debug('redactPdf: redact =', redact);
   
   var f = $('#redactForm');
-  f.attr('action', redactBaseUrl + "/redact");
+  f.attr('action', baseUrl + "/redact");
   $('input[name="redact"]', f).val(JSON.stringify( { redact: redact } ));
   f.submit();
 }
 
+function neEdit(range) {
+  var createType = $('#neCreate input:checked').attr('value');
+  var editType = $('#neEdit input:checked').attr('value');
+  debug('neEdit: range', range, 'createType', createType, 'editType', editType);
+  if (range.endOffset !== range.startOffset || range.startContainer !== range.endContainer) {
+    var elem = $("#processedText");
+    var txt = $('#inputText textarea').val();
+    var str = getTextOffset(range.startOffset, range.startContainer, elem);
+    var strNeRef = findNeRef(savedData, str);
+    var end = getTextOffset(range.endOffset, range.endContainer, elem);
+    var endNeRef = findNeRef(savedData, end);
+    var neRef = strNeRef.combine(endNeRef);
+    debug('neEdit:', 'str', str, 'strNeRef', strNeRef, 'end', end, 'endNeRef', endNeRef, 'neRef', neRef);
+    if (neRef.neIdx === -1) {
+      savedData.namedEntities.push({ 
+        ner: createType, 
+        representative: { start: str, end: end, text: txt.slice(str, end) },
+        coRefs: []
+      });
+    } else {
+      var ne = savedData.namedEntities[neRef.neIdx];
+      if (editType === 'deleted') {
+        if (neRef.corefIdx === -1) savedData.namedEntities.splice(neRef.neIdx, 1);
+        else ne.coRefs.splice(neRef.corefIdx, 1);
+      } else {
+        if (editType === 'changed') ne.ner = createType;
+        var m = neRef.corefIdx === -1 ? ne.representative : ne.coRefs[neRef.corefIdx];
+        m.start = str;
+        m.end = end;
+        m.text = txt.slice(str, end);
+      };
+    }
+    debug('neEdit:', 'savedData', savedData);
+    var elem = clearResults();
+    genContent(elem, txt, savedData);
+  };
+};
+
+/**
+ * Get text offset relative to elem.
+ * @param offset relative to container
+ * @param container a text node
+ * @param elem ancestor of container
+ * @return offset + sum of lengths of all text nodes under elem which preceed containiner 
+ */
+function getTextOffset(offset, container, elem) {
+  var txts = getTextDescendantsInDocOrder(elem);
+  var find = txts.indexOf(container);
+  var sum = offset;
+  for (i = 0; i < find; ++i) sum += txts[i].length;
+  return sum;
+};
+
+function NeRef(neIdx, corefIdx) {
+  this.neIdx = neIdx;
+  this.corefIdx = corefIdx;
+};
+NeRef.prototype.eq = function(x) {
+  return this.neIdx === x.neIdx && this.corefIdx === x.corefIdx;
+};
+NeRef.prototype.combine = function(x) {
+  return x.neIdx === -1 || this.eq(x) ? this 
+    : this.neIdx === -1 ? x
+    : new NeRef(-1, -1);
+};
+
+/**
+ * Find the first representative or coref mention that covers the given offset.
+ * TODO: with post processing there will only be one, but without there may be multiple overlapping mentions, so maybe we should return all of them.
+ * @param data namedEntities
+ * @param offset
+ * @returns { neIdx: neIdx, corefIdx: corefIdx } with -1 for not found
+ */
+function findNeRef(data, offset) {
+  function inM(m) { return m.start <= offset && offset < m.end; };
+  for (neIdx = 0; neIdx < data.namedEntities.length; ++neIdx) {
+    var ne = data.namedEntities[neIdx];
+    if (inM(ne.representative)) return new NeRef(neIdx, -1); // -1 for corefIdx because its found in representative mention
+    for (corefIdx = 0; corefIdx < ne.coRefs.length; ++corefIdx) {
+      if (inM(ne.coRefs[corefIdx])) return new NeRef(neIdx, corefIdx);
+    };
+  };
+  return new NeRef(-1, -1);
+};
+
+var baseUrl;
 var tableConfig;
 var updateTree;
 
 $(document).ready(function() {
+  baseUrl = window.location.protocol === 'file:'
+    ? 'http://localhost:8080/redact/rest/v1.0' // use this when page served from a local file during dev
+    : '/redact/rest/v1.0';                     // use this when page served from webapp
+
   $("#extractText input[type=file]").on('change', function(ev) { pdfFile = ev.target.files; });
   $("#extractText button").on('click', extractText);
   $("#inputText button").on('click', processText);
+  $("#processedText").on('mouseup', function(ev) { neEdit(window.getSelection().getRangeAt(0)); });
   $("#redactPdf button").on('click', redactPdf);
   
   // map multiple class names used by the different NERs to one class name used in the UI
   tableConfig = [
     { parent : $('#people'), classes : [ 'PERSON' ], label : 'Person' },
-    { parent : $('#organizations'), classes : [ 'ORGANIZATION' ], label : 'Organization' },
+    { parent : $('#organizations'), classes : [ 'ORGANIZATION', 'UNKNOWN' ], label : 'Organization' },
     { parent : $('#locations'), classes : [ 'LOCATION' ], label : 'Location' },
     { parent : $('#dates'), classes : [ 'DATE', 'TIME' ], label : 'Date, time, duration' },
     { parent : $('#numbers'), classes : [ 'NUMBER', 'PERCENT', 'PERCENTAGE', 'MONEY' ], label : 'Number' }
   ];
   
-  updateTree = mkTree;
+  $("#neCreate").append(mkRadios(
+    $.map(tableConfig, function(x, idx) {
+      var v = x.classes[0];
+      return { id: 'neCreate_' + v, value: v, label: x.label };
+    }),
+    'neCreate',
+    0));
+  
+  $("#neEdit").append(mkRadios(
+    [
+      { id: 'neEditUnchanged', value: 'unchanged', label: 'unchanged' },
+      { id: 'neEditChanged', value: 'changed', label: 'changed to type selected above' },
+      { id: 'neEditDelete', value: 'deleted', label: 'deleted' }
+    ],
+    'neEdit',
+    0));
+  
+  updateTree = mkTree;  
 });

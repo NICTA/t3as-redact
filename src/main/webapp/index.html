@@ -4,14 +4,13 @@
   <meta charset="UTF-8">
   <title>Redaction</title>
   <link rel="icon" type="image/ico" href="http://www.nicta.com.au/__data/assets/file/0014/28031/NICTALogo.ico" />
-<!--   <link href="https://code.jquery.com/ui/1.11.0/themes/ui-lightness/jquery-ui.css" rel="stylesheet" type="text/css"> -->
-  <link href="ui.css" rel="stylesheet" type="text/css">
+  <link href="index.css" rel="stylesheet" type="text/css">
 
   <script src="http://code.jquery.com/jquery-2.1.1.min.js" charset="utf-8"></script>
-<!--   <script src="https://code.jquery.com/ui/1.11.0/jquery-ui.min.js" charset="utf-8"></script> -->
   <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
-  <script src="ui.js" charset="utf-8"></script>
   <script src="dndTree.js" charset="utf-8"></script>
+  <script src="common.js" charset="utf-8"></script>
+  <script src="index.js" charset="utf-8"></script>
 </head>
 
 <body>
@@ -28,6 +27,7 @@
   
   <h2>Input Text</h2>
   <div id="inputText">
+    <form>
     <textarea name="text"></textarea>
     <h3>NLP implementation</h3>
     <input type="radio" name="nerImpl" id="nerImplCoreNLP"/><label for="nerImplCoreNLP">Stanford CoreNLP NER</label>
@@ -40,15 +40,25 @@
     <input type="checkbox" name="nerPostProcess" id="nerPostProcess" checked="checked"/><label for="nerPostProcess">Heuristic post-processing</label>
     <br>
     <button name="process">Process</button>
+    </form>
   </div>
   
   <h2>Processed Text</h2>
   <div id="processedText"></div>
-
+  <div id="neCreateEdit">
+    <span class="label">Edit entities by selecting text above.</span>
+    <br/>
+    <span class="label">Created entity will be:</span>
+    <span id="neCreate"></span>
+    <br/>
+    <span class="label">Edited entity will be:</span>
+    <span id="neEdit"></span>
+  </div>
+  
   <h2>Entities List</h2>
   <div id="entities">
     <h3>People</h2>
-    <div id="people"> </div>
+    <div id="people"></div>
 
     <h3>Organizations</h2>
     <div id="organizations"></div>
@@ -65,7 +75,9 @@
 
   <h2>Redact PDF</h2>
   <div id="redactPdf">
+    <form>
     <button name="redact">Redact</button>
+    </form>
   </div>
   
   <h2>Entities Tree</h2>

@@ -26,6 +26,15 @@ h1,h2,h3,h4 {
   margin-top: 10px;
 }
 
+#neCreateEdit {
+  margin-top: 10px;
+}
+
+#neCreateEdit input {
+  margin-top: 10px;
+  margin-left: 20px;
+}
+
 /* http://stackoverflow.com/questions/2346011/jquery-scroll-to-an-element-within-an-overflowed-div */
 #processedText {
   white-space: pre-line;
@@ -65,7 +74,7 @@ input.hidden {
   outline: 2px solid green;
 }
 
-.organization {
+.organization,.unknown {
   outline: 2px solid blue;
 }
 

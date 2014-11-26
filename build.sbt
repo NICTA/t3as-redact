@@ -8,11 +8,11 @@ licenses := Seq("GNU Affero General Public License v3" -> url("http://www.gnu.or
 
 homepage := Some(url("https://github.com/NICTA/t3as-redact"))
 
-net.virtualvoid.sbt.graph.Plugin.graphSettings
-
 scalaVersion := "2.11.2"
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
+
+net.virtualvoid.sbt.graph.Plugin.graphSettings
 
 lazy val root = (project in file(".")).enablePlugins(SbtWeb)
 
