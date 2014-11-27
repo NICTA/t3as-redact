@@ -23,10 +23,10 @@ Markup.prototype.outputIdx = function(inputIdx) {
   return sum;
 };
 
-function markup(data, text) {
+function markup(namedEntities, text) {
   // ref refers to a named entity and all (co)refs to it
   // mention refers to one specific mention
-  var d = $.map(data.namedEntities, function(ne, neIdx) {
+  var d = $.map(namedEntities, function(ne, neIdx) {
     var mentions = $.map(ne.coRefs, function(cr, crIdx) {
       return { ref: neIdx, mention: neIdx + '_' + crIdx, ner: ne.ner, start: cr.start, end: cr.end };
     });
@@ -125,7 +125,7 @@ function processText(ev) {
   var txt = $('#inputText textarea').val();  
 
   function genContentPP(elem, data) {
-    genContent(elem, txt, $('#nerPostProcess').is(':checked') ? postProcess(data) : data);
+    genContent(elem, txt, conditionalPostProcess(data.namedEntities));
   }
   
   switch ($('#inputText input[name=nerImpl]:checked').attr('id')) {
@@ -162,17 +162,17 @@ function processText(ev) {
  * 
  * @param data response from NICTA NER, format:
  * <pre>
- * [ 
- *   [                                                         // one inner array per sentence
- *     {                                                       // one struct per phrase 
- *       phrase: [ { startIndex: 0, text: "Mickey" }, ... ],   // the words in the phrase
- *       phraseType: "PERSON"                                  // the class of named entity
+ * [                                                           // array of sentences
+ *   [                                                         // array of phrases in sentence 
+ *     {                                                       // struct per phrase 
+ *       phrase: [ { startIndex: 0, text: "Mickey" }, ... ],   // words in phrase
+ *       phraseType: "PERSON"                                  // class of named entity
  *     }, ...
  *   ], 
  * ... ]
  * </pre>
  * @param txt input text
- * @returns data in same format as CoreNLP service
+ * @returns namedEntities in same format as CoreNLP service
  */
 function transformNictaNER(data, txt) {
   var ners = $.map(data.phrases, function(sentence, sIdx) {
@@ -180,7 +180,7 @@ function transformNictaNER(data, txt) {
       var str = x.phrase[0].startIndex;
       var last = x.phrase[x.phrase.length - 1];
       var end = last.startIndex + last.text.length;
-      debug('transformNictaNER:', 'x =', x, 'str =', str, 'end =', end, 'last =', last);
+      // debug('transformNictaNER:', 'x =', x, 'str =', str, 'end =', end, 'last =', last);
       return {
         representative : { start : str, end : end, text : txt.substring(str, end) },
         ner : x.phraseType.entityClass,
@@ -188,10 +188,7 @@ function transformNictaNER(data, txt) {
       };
     });
   });
-  
-  var d = { namedEntities : ners };
-  debug('transformNictaNER:', 'd =', d);
-  return d;
+  return { namedEntities: ners };
 };
 
 
@@ -220,6 +217,10 @@ Set.prototype.containsWords = function(s) {
   return true;
 };
 
+function conditionalPostProcess(namedEntities) {
+  return $('#nerPostProcess').is(':checked') ? postProcess(namedEntities) : namedEntities;
+}
+    
 /**
  * Heuristic post processing of NER result.
  * Rules:<ol>
@@ -242,8 +243,8 @@ Set.prototype.containsWords = function(s) {
  * 
  * Mouse over scrolling on the tree doesn't work on the representative mention for Tim de Sousa, seems to work on all other nodes though.
  */
-function postProcess(data) {
-  debug('postProcess:', 'data =', data);
+function postProcess(namedEntities) {
+  debug('postProcess:', 'namedEntities =', namedEntities);
   
   var neMap = {
     map: {}, // key -> { ne: the ne, words: Set of words in ne.representative.text } 
@@ -307,26 +308,26 @@ function postProcess(data) {
     }
   };
   
-  neMap.addAll(data.namedEntities);
-  var r = { namedEntities: neMap.result() };
+  neMap.addAll(namedEntities);
+  var r = neMap.result();
   debug('postProcess:', 'return =', r);
   return r;
 }
 
-var savedData;
+var savedNamedEntities;
 
-function genContent(elem, txt, data) {
-  savedData = data;
+function genContent(elem, txt, namedEntities) {
+  savedNamedEntities = namedEntities;
   elem.empty();
-  elem.append(markup(data, txt));
+  elem.append(markup(namedEntities, txt));
 
-  var treeData = toTreeData(data);
+  var treeData = toTreeData(namedEntities);
   debug('genContent:', 'treeData =', treeData);
   updateTree = updateTree(treeData); // create/update tree, return function to update existing tree
   // $("#tree-container text").on("mouseenter", highlight).on("mouseleave", unhighlight);
   
   $.each(tableConfig, function(idx, p) {
-    populate(p.parent, p.classes, p.label, data);
+    populate(p.parent, p.classes, p.label, namedEntities);
   });
   $("#entities input[type='text']").attr('class', 'hidden'); // reason hidden until checkbox ticked
   $("#entities span[ref]").on("mouseenter", highlightEv).on("mouseleave", unhighlightEv);
@@ -338,7 +339,7 @@ function genContent(elem, txt, data) {
  * @param data
  * @returns treeData
  */
-function toTreeData(data) {
+function toTreeData(namedEntities) {
   // return root of tree
   return {
     "name": "Entities",
@@ -346,14 +347,14 @@ function toTreeData(data) {
       // 1st level: entity types: Person, Organization etc.
       return {
         name: p.label,
-        children: $.map(data.namedEntities, function(x, idx) {
+        children: $.map(namedEntities, function(x, idx) {
           // 2nd level: representative instances of their parent's type
-          if (p.classes.indexOf(x.ner) === -1) return undefined;
-          return {
-            name: x.representative.text,
+          var r = x.representative;
+          return p.classes.indexOf(x.ner) === -1 ?  undefined : {
+            name: r.text,
             ref: idx,
-            start: x.start,
-            end: x.end,
+            start: r.start,
+            end: r.end,
             children: $.map(x.coRefs, function(x, idx2) {
               // 3rd level: co-references to the same entity as their representative parent
               return {
@@ -369,7 +370,7 @@ function toTreeData(data) {
       }
     })
   };
-}
+};
 
 // TODO: use data attached to elements instead of non-standard attributes ref and mention?
 
@@ -378,11 +379,11 @@ function toTreeData(data) {
  * @param parent that the table is appended to
  * @param classes of named entities to include in this table (skip data rows for other classes)
  * @param label displayed to represent these classes
- * @param data as returned by the CoreNLP service or transformNictaNER
+ * @param namedEntities as returned by the CoreNLP service or transformNictaNER
  */
-function populate(parent, classes, label, data) {
+function populate(parent, classes, label, namedEntities) {
   var td = function(s) { return $('<td>').append(s); };
-  var rows = $.map(data.namedEntities, function(x, idx) {
+  var rows = $.map(namedEntities, function(x, idx) {
     // debug('populate.map:', 'classes =', classes, 'x.ner =', x.ner);
     if (classes.indexOf(x.ner) === -1) return undefined;
     // createTextNode properly escapes the text
@@ -423,12 +424,10 @@ function getEvAttr(ev, name) {
   return val;
 }
 
+// jQuery selector for text in Entities List <span ref="idx">text</span>
 function toSelection(name, val) { return 'span[' + name + '="' + val + '"]'; }
 
-function highlightEv(ev) { highlightRef(getEvAttr(ev, 'ref')); }
-function highlightRef(ref) { highlightSel(toSelection('ref', ref)); }
-function highlightMention(mention) { highlightSel(toSelection('mention', mention)); }
-
+// add highlight class to elements specified by jQuery selection, scroll to show top element
 function highlightSel(selection) {
   var p = $('#processedText');
   var s = $(selection, p);
@@ -437,15 +436,28 @@ function highlightSel(selection) {
   p.animate({ scrollTop: p.scrollTop() + s.first().position().top }, 1000);
 }
 
-function unhighlightEv(ev) { unhighlightRef(getEvAttr(ev, 'ref')); }
-function unhighlightRef(ref) { unhighlightSel(toSelection('ref', ref)); }
-function unhighlightMention(mention) { unhighlightSel(toSelection('mention', mention)); }
-
+// remove highlight class from elements specified by jQuery selection
 function unhighlightSel(selection) {
   var p = $('#processedText');
   var s = $(selection, p);
   s.removeClass('highlight');
 }
+
+// these 4 functions are called by dndTree's mouse over event handlers
+// highlight a representative mention
+function highlightRef(ref) { highlightSel(toSelection('ref', ref)); }
+function unhighlightRef(ref) { unhighlightSel(toSelection('ref', ref)); }
+// highlight a coref TODO: maybe use 'ref' attr here as well instead of 'mention' what would break? Could delete these and use highlightRef instead.
+function highlightMention(mention) { highlightSel(toSelection('mention', mention)); }
+function unhighlightMention(mention) { unhighlightSel(toSelection('mention', mention)); }
+
+// TODO: add extra callbacks for dndTree to update our savedNamedEntities when a node is moved.
+// Then we need to repopulate the Entities List.
+// Maybe all the callbacks should be gathered into an explicit 'callbacks' object passed to mkTree, rather than it knowing our function names.
+
+// event handlers for mouse over text in Entities List <span ref="idx">text</span>, to highlight the entity in context
+function highlightEv(ev) { highlightRef(getEvAttr(ev, 'ref')); }
+function unhighlightEv(ev) { unhighlightRef(getEvAttr(ev, 'ref')); }
 
 function redact(ev) {
   var t = $(ev.target);
@@ -465,7 +477,7 @@ function redact(ev) {
 
 function redactPdf(ev) {
   var redact = $.map($("#entities input[type='checkbox']:checked"), function(x, idx) {
-    var ne = savedData.namedEntities[$(x).attr('ref')]; // lookup namedEntity using each checkbox ref attr
+    var ne = savedNamedEntities[$(x).attr('ref')]; // lookup namedEntity using each checkbox ref attr
     // flatten the representative ne and its coRefs
     var arr = [];
     arr.push(ne.representative);
@@ -487,24 +499,25 @@ function neEdit(range) {
   var editType = $('#neEdit input:checked').attr('value');
   debug('neEdit: range', range, 'createType', createType, 'editType', editType);
   if (range.endOffset !== range.startOffset || range.startContainer !== range.endContainer) {
+    var namedEntities = savedNamedEntities; // warning: following code is modifying savedNamedEntities in-place
     var elem = $("#processedText");
     var txt = $('#inputText textarea').val();
     var str = getTextOffset(range.startOffset, range.startContainer, elem);
-    var strNeRef = findNeRef(savedData, str);
+    var strNeRef = findNeRef(namedEntities, str);
     var end = getTextOffset(range.endOffset, range.endContainer, elem);
-    var endNeRef = findNeRef(savedData, end);
+    var endNeRef = findNeRef(namedEntities, end);
     var neRef = strNeRef.combine(endNeRef);
     debug('neEdit:', 'str', str, 'strNeRef', strNeRef, 'end', end, 'endNeRef', endNeRef, 'neRef', neRef);
     if (neRef.neIdx === -1) {
-      savedData.namedEntities.push({ 
+      namedEntities.push({ 
         ner: createType, 
         representative: { start: str, end: end, text: txt.slice(str, end) },
         coRefs: []
       });
     } else {
-      var ne = savedData.namedEntities[neRef.neIdx];
+      var ne = namedEntities[neRef.neIdx];
       if (editType === 'deleted') {
-        if (neRef.corefIdx === -1) savedData.namedEntities.splice(neRef.neIdx, 1);
+        if (neRef.corefIdx === -1) namedEntities.splice(neRef.neIdx, 1);
         else ne.coRefs.splice(neRef.corefIdx, 1);
       } else {
         if (editType === 'changed') ne.ner = createType;
@@ -514,9 +527,10 @@ function neEdit(range) {
         m.text = txt.slice(str, end);
       };
     }
-    debug('neEdit:', 'savedData', savedData);
+    namedEntities = conditionalPostProcess(namedEntities);
+    debug('neEdit:', 'namedEntities', namedEntities);
     var elem = clearResults();
-    genContent(elem, txt, savedData);
+    genContent(elem, txt, namedEntities);
   };
 };
 
@@ -555,10 +569,10 @@ NeRef.prototype.combine = function(x) {
  * @param offset
  * @returns { neIdx: neIdx, corefIdx: corefIdx } with -1 for not found
  */
-function findNeRef(data, offset) {
+function findNeRef(namedEntities, offset) {
   function inM(m) { return m.start <= offset && offset < m.end; };
-  for (neIdx = 0; neIdx < data.namedEntities.length; ++neIdx) {
-    var ne = data.namedEntities[neIdx];
+  for (neIdx = 0; neIdx < namedEntities.length; ++neIdx) {
+    var ne = namedEntities[neIdx];
     if (inM(ne.representative)) return new NeRef(neIdx, -1); // -1 for corefIdx because its found in representative mention
     for (corefIdx = 0; corefIdx < ne.coRefs.length; ++corefIdx) {
       if (inM(ne.coRefs[corefIdx])) return new NeRef(neIdx, corefIdx);
@@ -574,7 +588,7 @@ var updateTree;
 $(document).ready(function() {
   baseUrl = window.location.protocol === 'file:'
     ? 'http://localhost:8080/redact/rest/v1.0' // use this when page served from a local file during dev
-    : '/redact/rest/v1.0';                     // use this when page served from webapp
+    : 'rest/v1.0';                             // use relative path when page served from webapp
 
   $("#extractText input[type=file]").on('change', function(ev) { pdfFile = ev.target.files; });
   $("#extractText button").on('click', extractText);
@@ -601,7 +615,7 @@ $(document).ready(function() {
   
   $("#neEdit").append(mkRadios(
     [
-      { id: 'neEditUnchanged', value: 'unchanged', label: 'unchanged' },
+      { id: 'neEditUnchanged', value: 'unchanged', label: 'of current type' },
       { id: 'neEditChanged', value: 'changed', label: 'changed to type selected above' },
       { id: 'neEditDelete', value: 'deleted', label: 'deleted' }
     ],

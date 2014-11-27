@@ -6,76 +6,81 @@
 //  <script src="dndTree.js" charset="utf-8"></script>
 
 // treeJSON = d3.json("flare.json", function(error, treeData) {
-function mkTree(treeData) {
+function mkTree(treeData, canDrag) {
   
-    function debug() {
-      console.log(arguments);
-    };
+  function debug() {
+    console.log(arguments);
+  };
+    
+  // variables for drag/drop
+  var selectedNode = null;
+  var draggingNode = null;
+  var dragStarted = null;
 
-    // Calculate max label length
-    // variables for drag/drop
-    var selectedNode = null;
-    var draggingNode = null;
-    // panning variables
-    var panSpeed = 200;
-    var panBoundary = 20; // Within 20px from edges will pan when dragging.
-    // Misc. variables
-    var i = 0;
-    var duration = 750;
-    var root;
+  // panning variables
+  var panSpeed = 200;
+  var panBoundary = 20; // Within 20px from edges will pan when dragging.
+  
+  // Misc. variables
+  var i = 0;
+  var duration = 750;
+  var root;
 
-    // size of the diagram
-    var viewerWidth = $('#tree-container').width(); // TODO: make this a parameter
-    var viewerHeight = $('#tree-container').height();
-    debug('dndTree:', 'viewerWidth =', viewerWidth, 'viewerHeight =', viewerHeight);
+  // size of the diagram
+  var viewerWidth = $('#tree-container').width(); // TODO: make this a parameter
+  var viewerHeight = $('#tree-container').height();
+  debug('dndTree:', 'viewerWidth =', viewerWidth, 'viewerHeight =', viewerHeight);
 
-    var tree = d3.layout.tree()
-      .size([viewerHeight, viewerWidth])
-      .sort(function(a, b) {
-        return b.name.toLowerCase() < a.name.toLowerCase() ? 1 : -1;
-      });
-      
-    // define a d3 diagonal projection for use by the node paths later on.
-    var diagonal = d3.svg.diagonal().projection(function(d) {
-       return [d.y, d.x];
+  var tree = d3.layout.tree()
+    .size([viewerHeight, viewerWidth])
+    .sort(function(a, b) {
+      return b.name.toLowerCase() < a.name.toLowerCase() ? 1 : -1;
     });
+    
+  // define a d3 diagonal projection for use by the node paths later on.
+  var diagonal = d3.svg.diagonal().projection(function(d) {
+     return [d.y, d.x];
+  });
 
-    // TODO: Pan function, can be better implemented.
+  // TODO: Pan function, can be better implemented.
 
-    function pan(domNode, direction) {
-        var speed = panSpeed;
-        if (panTimer) {
-            clearTimeout(panTimer);
-            translateCoords = d3.transform(svgGroup.attr("transform"));
-            if (direction == 'left' || direction == 'right') {
-                translateX = direction == 'left' ? translateCoords.translate[0] + speed : translateCoords.translate[0] - speed;
-                translateY = translateCoords.translate[1];
-            } else if (direction == 'up' || direction == 'down') {
-                translateX = translateCoords.translate[0];
-                translateY = direction == 'up' ? translateCoords.translate[1] + speed : translateCoords.translate[1] - speed;
-            }
-            scaleX = translateCoords.scale[0];
-            scaleY = translateCoords.scale[1];
-            scale = zoomListener.scale();
-            svgGroup.transition().attr("transform", "translate(" + translateX + "," + translateY + ")scale(" + scale + ")");
-            d3.select(domNode).select('g.node').attr("transform", "translate(" + translateX + "," + translateY + ")");
-            zoomListener.scale(zoomListener.scale());
-            zoomListener.translate([translateX, translateY]);
-            panTimer = setTimeout(function() {
-                pan(domNode, speed, direction);
-            }, 50);
-        }
-    }
+  function pan(domNode, direction) {
+    var speed = panSpeed;
+    if (panTimer) {
+      clearTimeout(panTimer);
+      translateCoords = d3.transform(svgGroup.attr("transform"));
+      if (direction == 'left' || direction == 'right') {
+          translateX = direction == 'left' ? translateCoords.translate[0] + speed : translateCoords.translate[0] - speed;
+          translateY = translateCoords.translate[1];
+      } else if (direction == 'up' || direction == 'down') {
+          translateX = translateCoords.translate[0];
+          translateY = direction == 'up' ? translateCoords.translate[1] + speed : translateCoords.translate[1] - speed;
+      }
+      scaleX = translateCoords.scale[0];
+      scaleY = translateCoords.scale[1];
+      scale = zoomListener.scale();
+      svgGroup.transition().attr("transform", "translate(" + translateX + "," + translateY + ")scale(" + scale + ")");
+      d3.select(domNode).select('g.node').attr("transform", "translate(" + translateX + "," + translateY + ")");
+      zoomListener.scale(zoomListener.scale());
+      zoomListener.translate([translateX, translateY]);
+      panTimer = setTimeout(
+        function() {
+          pan(domNode, speed, direction);
+        },
+        50
+      );
+    };
+  };
 
-    // Define the zoom function for the zoomable tree
+  // Define the zoom function for the zoomable tree
 
-    function zoom() {
-        svgGroup.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
-    }
+  function zoom() {
+    svgGroup.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+  }
 
 
-    // define the zoomListener which calls the zoom function on the "zoom" event constrained within the scaleExtents
-    var zoomListener = d3.behavior.zoom().scaleExtent([0.1, 3]).on("zoom", zoom);
+  // define the zoomListener which calls the zoom function on the "zoom" event constrained within the scaleExtents
+  var zoomListener = d3.behavior.zoom().scaleExtent([0.1, 3]).on("zoom", zoom);
 
     function initiateDrag(d, domNode) {
         draggingNode = d;
@@ -126,88 +131,97 @@ function mkTree(treeData) {
         .attr("class", "overlay")
         .call(zoomListener);
 
-
     // Define the drag listeners for drag/drop behaviour of nodes.
     dragListener = d3.behavior.drag()
         .on("dragstart", function(d) {
-            // TODO: make this predicate a parameter:  can't drag root; for redaction can't drag level 1 children
-            if (d == root) { // || d.depth == 1) {
-                return;
-            }
+            if (d.depth < 2) return; // generally can't drag root (depth 0), in our case can't drag depth 1 either
+            
             dragStarted = true;
             nodes = tree.nodes(d);
             d3.event.sourceEvent.stopPropagation();
             // it's important that we suppress the mouseover event on the node being dragged. Otherwise it will absorb the mouseover event and the underlying node will not detect it d3.select(this).attr('pointer-events', 'none');
         })
         .on("drag", function(d) {
-          // TODO: make this predicate a parameter:  can't drag root; for redaction can't drag level 1 children
-            if (d == root) { // || d.depth == 1) {
-                return;
-            }
-            if (dragStarted) {
-                domNode = this;
-                initiateDrag(d, domNode);
-            }
+          if (d == root) return; // during dragging depth becomes 0
+          
+          if (dragStarted) {
+              domNode = this;
+              initiateDrag(d, domNode);
+          }
 
-            // get coords of mouseEvent relative to svg container to allow for panning
-            relCoords = d3.mouse($('svg').get(0));
-            if (relCoords[0] < panBoundary) {
-                panTimer = true;
-                pan(this, 'left');
-            } else if (relCoords[0] > ($('svg').width() - panBoundary)) {
+          // get coords of mouseEvent relative to svg container to allow for panning
+          relCoords = d3.mouse($('svg').get(0));
+          if (relCoords[0] < panBoundary) {
+              panTimer = true;
+              pan(this, 'left');
+          } else if (relCoords[0] > ($('svg').width() - panBoundary)) {
 
-                panTimer = true;
-                pan(this, 'right');
-            } else if (relCoords[1] < panBoundary) {
-                panTimer = true;
-                pan(this, 'up');
-            } else if (relCoords[1] > ($('svg').height() - panBoundary)) {
-                panTimer = true;
-                pan(this, 'down');
-            } else {
-                try {
-                    clearTimeout(panTimer);
-                } catch (e) {
+              panTimer = true;
+              pan(this, 'right');
+          } else if (relCoords[1] < panBoundary) {
+              panTimer = true;
+              pan(this, 'up');
+          } else if (relCoords[1] > ($('svg').height() - panBoundary)) {
+              panTimer = true;
+              pan(this, 'down');
+          } else {
+              try {
+                  clearTimeout(panTimer);
+              } catch (e) {
 
-                }
-            }
+              }
+          }
 
-            d.x0 += d3.event.dy;
-            d.y0 += d3.event.dx;
-            var node = d3.select(this);
-            node.attr("transform", "translate(" + d.y0 + "," + d.x0 + ")");
-            updateTempConnector();
+          d.x0 += d3.event.dy;
+          d.y0 += d3.event.dx;
+          var node = d3.select(this);
+          node.attr("transform", "translate(" + d.y0 + "," + d.x0 + ")");
+          updateTempConnector();
         }).on("dragend", function(d) {
-            // TODO: make this predicate a parameter:  can't drag root; for redaction can't drag level 1 children
-            if (d == root) { //  || d.depth == 1) {
-                return;
-            }
-            domNode = this;
-            // TODO: make this predicate a parameter: for redaction can't drop on root or depth 3 children
-            if (selectedNode) { //  && (selectedNode.depth == 1 || selectedNode.depth == 2)) {
-                // now remove the element from the parent, and insert it into the new elements children
-                var index = draggingNode.parent.children.indexOf(draggingNode);
-                if (index > -1) {
-                    draggingNode.parent.children.splice(index, 1);
-                }
-                if (typeof selectedNode.children !== 'undefined' || typeof selectedNode._children !== 'undefined') {
-                    if (typeof selectedNode.children !== 'undefined') {
-                        selectedNode.children.push(draggingNode);
-                    } else {
-                        selectedNode._children.push(draggingNode);
-                    }
-                } else {
-                    selectedNode.children = [];
-                    selectedNode.children.push(draggingNode);
-                }
-                // Make sure that the node being added to is expanded so user can see added node is correctly moved
-                expand(selectedNode);
-                endDrag();
-            } else {
-                endDrag();
-            }
+          if (d == root) return;
+          domNode = this;
+          var dpth = selectedNode ? depth(selectedNode) : 0;
+          debug('dragend: selectedNode', selectedNode, 'dpth', dpth);
+          if (0 < dpth && dpth < 3) {
+            reParent(draggingNode, selectedNode);
+            if (dpth === 2 && depth(draggingNode) === 2 && hasChildren(draggingNode)) reParentChildren(draggingNode, selectedNode);
+            expand(selectedNode); // Make sure that the node being added to is expanded so user can see added node is correctly moved
+          };
+          endDrag();
         });
 
+    // In dragend event handling above, selectedNode.depth is unreliable, I don't understand why, but use this instead
+    function depth(n) {
+      for (i = 0; n.parent; n = n.parent) ++i;
+      return i;
+    };
+    
+    function hasChildren(n) {
+      return n.children && n.children.length > 0   // displayed children (expanded node)
+        || n._children && n._children.length > 0;  // hidden children (collapsed node)
+    };
+    
+    function getChildren(n) {
+      return n.children ? n.children
+          : n._children ? n._children
+          : (n.children = []);
+    };
+    
+    // remove n from its parent and insert it into children of newParent
+    function reParent(n, newParent) {
+      var c = n.parent.children;
+      var i = c.indexOf(n);
+      if (i !== -1) c.splice(i, 1); // delete
+      getChildren(newParent).push(n);
+    };
+    
+    // remove children of n and insert them into children of newParent
+    function reParentChildren(n, newParent) {
+      var c = getChildren(n);
+      n.children = n._children = null;    // remove children
+      Array.prototype.push.apply(getChildren(newParent), c); // add them to newParent
+  }
+    
     function endDrag() {
         selectedNode = null;
         d3.selectAll('.ghostCircle').attr('class', 'ghostCircle');
@@ -342,7 +356,7 @@ function mkTree(treeData) {
         cummY += 40 + 5 * lo.max; // 40px + 5px per char
         lo.y = cummY;
       }
-      debug('getPixelOffsets: max label length and pixel offset per depth', 'lenOff =', lenOff);
+      // debug('getPixelOffsets: max label length and pixel offset per depth', 'lenOff =', lenOff);
       return function(depth) { return getLenOff(depth).y; };
     }
 
