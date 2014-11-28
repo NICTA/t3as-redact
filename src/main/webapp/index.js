@@ -199,7 +199,6 @@ function transformNictaNER(data, txt) {
  */
 function Set() {
   this.obj = {};
-  this.splitRe = / +/;
 };
 Set.prototype.add = function(k) {
   this.obj[k] = k;
@@ -209,12 +208,12 @@ Set.prototype.contains = function(k) {
 };
 /** Split s into words and add each word */
 Set.prototype.addWords = function(s) {
-  var w = s.split(this.splitRe);
+  var w = s.split(/ +/);
   for (var i = 0; i < w.length; i++) { this.add(w[i]); };
 };
 /** Split s into words and return true iff we contain all the words */
 Set.prototype.containsWords = function(s) {
-  var w = s.split(this.splitRe);
+  var w = s.split(/ +/);
   for (var i = 0; i < w.length; i++) { if (!this.contains(w[i])) return false; };
   return true;
 };
@@ -222,7 +221,22 @@ Set.prototype.containsWords = function(s) {
 function conditionalPostProcess(namedEntities) {
   return $('#nerPostProcess').is(':checked') ? postProcess(namedEntities) : namedEntities;
 }
-    
+
+/**
+ * @param acro the purported acronym
+ * @param term the term
+ * @returns {Boolean} true if acro is the acronym of term
+ */
+function isAcronym(acro, term) {
+  var arr = term.split(/ +/);
+  var ac = '';
+  for (i  = 0; i < arr.length; ++i) {
+    ac += arr[i].charAt(0).toUpperCase();
+  };
+  debug('isAcronym: ', 'acro', acro, 'term', term, 'ac', ac);
+  return ac === acro;
+}
+
 /**
  * Heuristic post processing of NER result.
  * Rules:<ol>
@@ -230,9 +244,9 @@ function conditionalPostProcess(namedEntities) {
  * <li>treat subsequent item of same type and same text as coref
  * <li>if type is PERSON the 'same text' criteria is relaxed so that if the subsequent item contains only words contained in the first mention it is considered a match,
  *     so that 'Abbott' or 'Tony' will be taken to be a reference to a preceding 'Tony Abbott'.
- * <li>TODO: Exclude common titles Mr/Mrs/Miss/Ms/Dr from above matching for PERSON.
- * <li>TODO: Include a similar rule for ORGANIZATION.
- * <li>TODO: For ORGANIZATION also accept an acronym.
+ * <li>exclude common titles Mr|Mrs|Miss|Ms|Dr from above matching for PERSON.
+ * <li>same as rule 3 but for ORGANIZATION.
+ * <li>for ORGANIZATION also accept an acronym.
  * </ol>
  * In/output object of type Result:<pre>
  *   case class Result(namedEntities: List[NamedEntity])
@@ -263,10 +277,18 @@ function postProcess(namedEntities) {
     EMPTY_SET: new Set(),
     lookupKey: function(k, ne) {
       if (k in this.map) return k; // rule 2
-      if (ne.ner === 'PERSON') { // rule 3
+      if (ne.ner === 'PERSON') {
         for (p in this.map) {
           var v = this.map[p];
-          if (v.ne.ner === 'PERSON' && v.words.containsWords(ne.representative.text)) return p;
+          //                                   rule 3                               rule 4
+          if (v.ne.ner === 'PERSON' && v.words.containsWords(ne.representative.text.replace(/\b(?:Mr|Mrs|Miss|Ms|Dr)\.? /, ''))) return p;
+        };
+      };
+      if (ne.ner === 'ORGANIZATION') {
+        for (p in this.map) {
+          var v = this.map[p];
+          //                                          rule 5                                   rule 6
+          if (v.ne.ner === 'ORGANIZATION' && (v.words.containsWords(ne.representative.text) || isAcronym(ne.representative.text, v.ne.representative.text))) return p;
         };
       };
       return this.NOT_FOUND;
@@ -277,9 +299,9 @@ function postProcess(namedEntities) {
       if (p === this.NOT_FOUND) {
         // save first mention
         var words = this.EMPTY_SET;
-        if (ne.ner === 'PERSON') {
+        if (ne.ner === 'PERSON' || ne.ner === 'ORGANIZATION') {
           words = new Set();
-          words.addWords(ne.representative.text);
+          words.addWords(ne.representative.text); // rules 3 & 5
         };
         this.map[k] = { ne: ne, words: words };
       } else {
