@@ -1,12 +1,6 @@
 // This is modified from original: http://bl.ocks.org/robschmuecker/7880033
 // D3.js Drag and Drop, Zoomable, Panning, Collapsible Tree with auto-sizing.
-
-// Usage:
-//  <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
-//  <script src="dndTree.js" charset="utf-8"></script>
-
-// treeJSON = d3.json("flare.json", function(error, treeData) {
-function mkTree(treeData, canDrag) {
+function mkTree(treeData, callbacks) {
   
   function debug() {
     console.log(arguments);
@@ -27,10 +21,12 @@ function mkTree(treeData, canDrag) {
   var root;
 
   // size of the diagram
-  var viewerWidth = $('#tree-container').width(); // TODO: make this a parameter
-  var viewerHeight = $('#tree-container').height();
-  debug('dndTree:', 'viewerWidth =', viewerWidth, 'viewerHeight =', viewerHeight);
-
+  var treeParentSelector = '#tree-container'; // TODO: make this a parameter
+  var elem = $(treeParentSelector);
+  elem.empty();
+  var viewerWidth = elem.width();
+  var viewerHeight = elem.height();
+  // debug('dndTree:', 'viewerWidth =',viewerWidth, 'viewerHeight =', viewerHeight);
   var tree = d3.layout.tree()
     .size([viewerHeight, viewerWidth])
     .sort(function(a, b) {
@@ -41,8 +37,6 @@ function mkTree(treeData, canDrag) {
   var diagonal = d3.svg.diagonal().projection(function(d) {
      return [d.y, d.x];
   });
-
-  // TODO: Pan function, can be better implemented.
 
   function pan(domNode, direction) {
     var speed = panSpeed;
@@ -72,67 +66,64 @@ function mkTree(treeData, canDrag) {
     };
   };
 
-  // Define the zoom function for the zoomable tree
-
   function zoom() {
     svgGroup.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
   }
 
-
   // define the zoomListener which calls the zoom function on the "zoom" event constrained within the scaleExtents
   var zoomListener = d3.behavior.zoom().scaleExtent([0.1, 3]).on("zoom", zoom);
 
-    function initiateDrag(d, domNode) {
-        draggingNode = d;
-        d3.select(domNode).select('.ghostCircle').attr('pointer-events', 'none');
-        d3.selectAll('.ghostCircle').attr('class', 'ghostCircle show');
-        d3.select(domNode).attr('class', 'node activeDrag');
+  function initiateDrag(d, domNode) {
+    draggingNode = d;
+    d3.select(domNode).select('.ghostCircle').attr('pointer-events', 'none');
+    d3.selectAll('.ghostCircle').attr('class', 'ghostCircle show');
+    d3.select(domNode).attr('class', 'node activeDrag');
 
-        svgGroup.selectAll("g.node").sort(function(a, b) { // select the parent and sort the path's
-            if (a.id != draggingNode.id) return 1; // a is not the hovered element, send "a" to the back
-            else return -1; // a is the hovered element, bring "a" to the front
-        });
-        // if nodes has children, remove the links and nodes
-        if (nodes.length > 1) {
-            // remove link paths
-            links = tree.links(nodes);
-            nodePaths = svgGroup.selectAll("path.link")
-                .data(links, function(d) {
-                    return d.target.id;
-                }).remove();
-            // remove child nodes
-            nodesExit = svgGroup.selectAll("g.node")
-                .data(nodes, function(d) {
-                    return d.id;
-                }).filter(function(d, i) {
-                    if (d.id == draggingNode.id) {
-                        return false;
-                    }
-                    return true;
-                }).remove();
-        }
-
-        // remove parent link
-        parentLink = tree.links(tree.nodes(draggingNode.parent));
-        svgGroup.selectAll('path.link').filter(function(d, i) {
-            if (d.target.id == draggingNode.id) {
+    svgGroup.selectAll("g.node").sort(function(a, b) { // select the parent and sort the path's
+        if (a.id != draggingNode.id) return 1; // a is not the hovered element, send "a" to the back
+        else return -1; // a is the hovered element, bring "a" to the front
+    });
+    // if nodes has children, remove the links and nodes
+    if (nodes.length > 1) {
+        // remove link paths
+        links = tree.links(nodes);
+        nodePaths = svgGroup.selectAll("path.link")
+            .data(links, function(d) {
+                return d.target.id;
+            }).remove();
+        // remove child nodes
+        nodesExit = svgGroup.selectAll("g.node")
+            .data(nodes, function(d) {
+                return d.id;
+            }).filter(function(d, i) {
+                if (d.id == draggingNode.id) {
+                    return false;
+                }
                 return true;
-            }
-            return false;
-        }).remove();
+            }).remove();
+    };
 
-        dragStarted = null;
-    }
+    // remove parent link
+    parentLink = tree.links(tree.nodes(draggingNode.parent));
+    svgGroup.selectAll('path.link').filter(function(d, i) {
+        if (d.target.id == draggingNode.id) {
+            return true;
+        }
+        return false;
+    }).remove();
 
-    // define the baseSvg, attaching a class for styling and the zoomListener
-    var baseSvg = d3.select("#tree-container").append("svg")
-        .attr("width", viewerWidth)
-        .attr("height", viewerHeight)
-        .attr("class", "overlay")
-        .call(zoomListener);
+    dragStarted = null;
+  };
 
-    // Define the drag listeners for drag/drop behaviour of nodes.
-    dragListener = d3.behavior.drag()
+  // define the baseSvg, attaching a class for styling and the zoomListener
+  var baseSvg = d3.select(treeParentSelector).append("svg")
+    .attr("width", viewerWidth)
+    .attr("height", viewerHeight)
+    .attr("class", "overlay")
+    .call(zoomListener);
+
+  // Define the drag listeners for drag/drop behaviour of nodes.
+  dragListener = d3.behavior.drag()
         .on("dragstart", function(d) {
             if (d.depth < 2) return; // generally can't drag root (depth 0), in our case can't drag depth 1 either
             
@@ -182,14 +173,26 @@ function mkTree(treeData, canDrag) {
           domNode = this;
           var dpth = selectedNode ? depth(selectedNode) : 0;
           debug('dragend: selectedNode', selectedNode, 'dpth', dpth);
-          if (0 < dpth && dpth < 3) {
+          if (dpth === 1 || dpth === 2 && selectedNode !== draggingNode.parent) {
             reParent(draggingNode, selectedNode);
             if (dpth === 2 && depth(draggingNode) === 2 && hasChildren(draggingNode)) reParentChildren(draggingNode, selectedNode);
             expand(selectedNode); // Make sure that the node being added to is expanded so user can see added node is correctly moved
+            var neIdx = draggingNode.neIdx, coRefIdx = draggingNode.coRefIdx, newParentNeIdx = selectedNode.neIdx, newClass = getNeClass(selectedNode);
+            endDrag();
+            if (callbacks.move) callbacks.move(neIdx, coRefIdx, newParentNeIdx, newClass);
+            // above callback messes up subsequent drag 'n drop
+            // TODO: because this changes neIdx and coRefIdx values it has to recreate the tree from scratch
+            // so maybe don't need to update the tree above?
+          } else {
+            endDrag();
           };
-          endDrag();
         });
 
+    function getNeClass(n) {
+      for ( ; !n.class && n.parent; n = n.parent);
+      return n.class;
+    }
+    
     // In dragend event handling above, selectedNode.depth is unreliable, I don't understand why, but use this instead
     function depth(n) {
       for (i = 0; n.parent; n = n.parent) ++i;
@@ -212,7 +215,7 @@ function mkTree(treeData, canDrag) {
       var c = n.parent.children;
       var i = c.indexOf(n);
       if (i !== -1) c.splice(i, 1); // delete
-      getChildren(newParent).push(n);
+      getChildren(newParent).push(n);      
     };
     
     // remove children of n and insert them into children of newParent
@@ -427,13 +430,11 @@ function mkTree(treeData, canDrag) {
             .style("fill-opacity", 0)
             .on("mouseover", function(node) {
                 debug('tree mouseover:', 'node = ', node);
-                if (node.mention) highlightMention(node.mention);
-                else if (node.ref) highlightRef(node.ref);
+                if (callbacks.highlight && node.neIdx !== 'undefined') callbacks.highlight(node.neIdx, node.coRefIdx);
             })
             .on("mouseout", function(node) {
               debug('tree mouseout:', 'node = ', node);
-              if (node.mention) unhighlightMention(node.mention);
-              else if (node.ref) unhighlightRef(node.ref);
+              if (callbacks.unhighlight && node.neIdx !== 'undefined') callbacks.unhighlight(node.neIdx, node.coRefIdx);
             });
 
         // phantom node to give us mouseover in a radius around it
