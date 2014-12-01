@@ -2,7 +2,7 @@ organization := "org.t3as"
 
 name := "redact"
 
-version := "0.1"
+version := "0.2"
 
 licenses := Seq("GNU Affero General Public License v3" -> url("http://www.gnu.org/licenses/agpl-3.0.en.html"))
 
@@ -22,7 +22,7 @@ seq(com.earldouglas.xsbtwebplugin.WebPlugin.webSettings :_*)
 publishArtifact in (Compile, packageBin) := true
 
 libraryDependencies ++= Seq(
-  "org.t3as" %% "pdf" % "0.1",
+  "org.t3as" %% "pdf" % "0.2",
   "org.apache.opennlp" % "opennlp-tools" % "1.5.3",
   "com.thetransactioncompany" % "cors-filter" % "1.9.2",
   "org.slf4j" % "slf4j-api" % "1.7.6",

@@ -343,6 +343,9 @@ function postProcess(namedEntities) {
 
 var savedNamedEntities;
 
+function getTarget(ev) { return $(ev.target); }
+function getNeIdx(t) { return t.attr('neIdx'); }
+
 function genContent(elem, txt, namedEntities) {
   savedNamedEntities = namedEntities;
   elem.empty();
@@ -361,13 +364,9 @@ function genContent(elem, txt, namedEntities) {
   $("input[type='checkbox']", elem).on('change', redact);
 
   // mouse over highlights the entity in Processed Text
-  function getNeIdx(ev) {
-    // ev.preventDefault();
-    return $(ev.target).attr('neIdx');
-  }
   $("span[neIdx]", elem)
-    .on("mouseenter", function(ev) { highlight(getNeIdx(ev)); })
-    .on("mouseleave", function(ev) { unhighlight(getNeIdx(ev)); });
+    .on("mouseenter", function(ev) { highlight(getNeIdx(getTarget(ev))); })
+    .on("mouseleave", function(ev) { unhighlight(getNeIdx(getTarget(ev))); });
 };
 
 /**
@@ -408,8 +407,6 @@ function toTreeData(namedEntities) {
     })
   };
 };
-
-// TODO: use data attached to elements instead of non-standard attributes ref and mention?
 
 /**
  * Generate a table of named entities.
@@ -454,9 +451,9 @@ function genNeTable(parent, classes, label, namedEntities) {
   }
 }
 
-// get jQuery selector for elements to un/highlight
-function getSelector(neIdx, coRefIdx) {
-  var x = 'span[neIdx=' + neIdx + ']';
+// get jQuery attribute selector for elements to un/highlight
+function getAttrSelector(neIdx, coRefIdx) {
+  var x = '[neIdx=' + neIdx + ']';
   return typeof coRefIdx === 'undefined' ? x : x + '[coRefIdx=' + coRefIdx + ']';
 };
 
@@ -468,7 +465,7 @@ function getSelector(neIdx, coRefIdx) {
 function highlight(neIdx, coRefIdx) {
   debug('highlight:', 'neIdx', neIdx, 'coRefIdx', coRefIdx);
   var p = $('#processedText');
-  var s = $(getSelector(neIdx, coRefIdx), p)
+  var s = $('span' + getAttrSelector(neIdx, coRefIdx), p)
   s.addClass('highlight');
   // http://stackoverflow.com/questions/2346011/jquery-scroll-to-an-element-within-an-overflowed-div
   p.animate({ scrollTop: p.scrollTop() + s.first().position().top }, 1000);
@@ -477,16 +474,17 @@ function highlight(neIdx, coRefIdx) {
 // remove highlight class
 function unhighlight(neIdx, coRefIdx) {
   var p = $('#processedText');
-  $(getSelector(neIdx, coRefIdx), p).removeClass('highlight');
+  $('span' + getAttrSelector(neIdx, coRefIdx), p).removeClass('highlight');
 }
 
 function redact(ev) {
-  var t = $(ev.target);
-  var ref = '[ref=' + t.attr('ref') + ']';
-  debug('redact: ev =', ev, 'ref =', ref);
   ev.preventDefault();
-  var spans = $('#processedText span' + ref);
-  var reason = $('#entities input[type=text]' + ref);
+  var t = getTarget(ev);
+  var sel = getAttrSelector(getNeIdx(t));
+  
+  debug('redact: ev =', ev, 'sel', sel);
+  var spans = $('#processedText span' + sel);
+  var reason = $('#entities input[type=text]' + sel);
   if (t.is(':checked')) {
     spans.addClass('redacted');
     reason.removeClass('hidden');
@@ -498,12 +496,10 @@ function redact(ev) {
 
 function redactPdf(ev) {
   var redact = $.map($("#entities input[type='checkbox']:checked"), function(x, idx) {
-    var ne = savedNamedEntities[$(x).attr('ref')]; // lookup namedEntity using each checkbox ref attr
+    var ne = savedNamedEntities[getNeIdx($(x))]; // lookup namedEntity using each checkbox neIdx attr
+    // debug('redactPdf: ne =', ne);
     // flatten the representative ne and its coRefs
-    var arr = [];
-    arr.push(ne.representative);
-    arr.concat(ne.coRefs);
-    return $.map(arr, function(a, idx) {
+    return $.map([ ne.representative ].concat(ne.coRefs), function(a, idx) {
       return pageOffsets.getPageOffset(a.start, a.end); // convert offsets into text from all pages to page and offset within page
     });
   });

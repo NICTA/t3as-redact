@@ -98,55 +98,58 @@ span.redacted {
   text-decoration: line-through;
 }
 
-/* D3 tree styles */
-
-#tree-container {
-  margin-top: 10px;
-  width: 100%;
-  height: 600px;
-}
-
-.node {
-  cursor: pointer;
-}
-
-.overlay {
-  background-color: #EEE;
-}
-
-.node circle {
-  fill: #fff;
-  stroke: steelblue;
-  stroke-width: 1.5px;
-}
-
-.node text {
-  font-size: 10px;
-  font-family: sans-serif;
-}
-
-.link {
-  fill: none;
-  stroke: #ccc;
-  stroke-width: 1.5px;
-}
-
-.templink {
-  fill: none;
-  stroke: red;
-  stroke-width: 3px;
-}
-
-.ghostCircle.show {
-  display: block;
-}
-
-.ghostCircle,.activeDrag .ghostCircle {
-  display: none;
-}
-
 /* not used - append icon to indicate an external link that opens in a new window
 a[target=_blank]:after {
   content: url(http://upload.wikimedia.org/wikipedia/commons/6/64/Icon_External_Link.png);
   margin: 0 0 0 5px;
 } */
+
+
+/* D3 tree styles */
+
+#tree-container {
+  margin-top: 10px;
+  width: 100%;
+  height: 300px;
+  border: grey solid 1px;
+}
+
+#tree-container .node {
+  cursor: pointer;
+}
+
+#tree-container .overlay {
+  background-color: #EEE;
+}
+
+#tree-container .node circle {
+  fill: #fff;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+#tree-container .node text {
+  font-size: 10px;
+  font-family: sans-serif;
+}
+
+#tree-container .link {
+  fill: none;
+  stroke: #ccc;
+  stroke-width: 1.5px;
+}
+
+#tree-container .templink {
+  fill: none;
+  stroke: red;
+  stroke-width: 3px;
+}
+
+#tree-container .ghostCircle.show {
+  display: block;
+}
+
+#tree-container .ghostCircle,.activeDrag .ghostCircle {
+  display: none;
+}
+
