@@ -632,7 +632,7 @@ NeRef.prototype.combine = function(x) {
  * @returns { neIdx: neIdx, corefIdx: corefIdx } with -1 for not found
  */
 function findNeRef(namedEntities, offset) {
-  function inM(m) { return m.start <= offset && offset < m.end; };
+  function inM(m) { return m.start <= offset && offset <= m.end; };
   for (neIdx = 0; neIdx < namedEntities.length; ++neIdx) {
     var ne = namedEntities[neIdx];
     if (inM(ne.representative)) return new NeRef(neIdx, -1); // -1 for corefIdx because its found in representative mention
@@ -658,7 +658,7 @@ $(document).ready(function() {
   $("#processedText").on('mouseup', function(ev) { neEdit(window.getSelection().getRangeAt(0)); });
   $("#redactPdf button").on('click', redactPdf);
   
-  // map multiple class names used by the different NERs to one class name used in the UI
+  // map multiple class names used by the different NERs to one label and class name (the first in the list) used in the UI
   tableConfig = [
     { parent : $('#people'), classes : [ 'PERSON' ], label : 'Person' },
     { parent : $('#organizations'), classes : [ 'ORGANIZATION', 'UNKNOWN' ], label : 'Organization' },

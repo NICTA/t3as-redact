@@ -20,7 +20,7 @@
  */
 package org.t3as.redact.nlp
 
-import org.t3as.pdf.PdfCopyRedact.RedactItem
+import org.t3as.pdf.RedactItem
 
 /** Input and output parameter types for service methods */
 object Param {
