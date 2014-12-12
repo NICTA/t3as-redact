@@ -16,20 +16,22 @@ The web services are:
 The [prototype UI](http://redaction.research.nicta.com.au:8080/redact/ui.html) supports the workflow:
 
 1. upload PDF, server responds with array of one string per page of text extracted from the PDF;
-2. user can edit the extracted text; alternatively the user can skip step 1 and start by pasting in text;
-3. perform named entity recognition on the text, optionally with co-references (identifying subsequent references to the same entity);
-4. select named entities to redact;
-5. perform redaction: the PDF is uploaded again (the server is stateless) and the redacted PDF is downloaded with selected named entities and their co-references and metadata removed.
-
-Required functionality not yet provided:
-- allow the user to manipulate the named entity mentions:
+1. user can edit the extracted text; alternatively the user can skip step 1 and start by pasting in text;
+1. perform named entity recognition on the text, optionally with co-references (identifying subsequent references to the same entity);
+1. user can manipulate the named entity mentions highlighted in the `Processed Text` section:
   - delete,
   - create,
-  - modify type and extent,
-  - move representative mention to coRef of some other representative mention (the moved coRefs become coRefs of the destination (which makes undo problematic)),
-  - move coRef to new representative mention,
-  - move coRef to a different representative mention;
-- include redactionReason in redaction request and redacted PDF.
+  - modify type and extent;
+1. user can manupulate named entity type and representative mention/coRef relationships in the `Entities Tree` section - here 'source' refers to a representative mention or coRef:
+  - drag source to a new type to change the type of the source (and its children),
+  - drag source to a destination representative mention to make the source (and its children) children of the destination;
+1. select representative mentions to redact and a reason for redaction;
+1. perform redaction of selected representative mentions and their coRefs: the PDF is uploaded again (the server is stateless) and the redacted PDF is downloaded with selected named entities and their co-references removed and metadata removed.
+
+Required functionality not yet provided:
+- show the reason for redaction at each redacted location in the PDF
+- support separate markup and review processes prior to actual redaction (maybe related to next item)
+- interoperate with Adobe tools by using standard metadata for redactions 
 
 ### Implementation
 
@@ -40,7 +42,7 @@ Data structure for the result of named entity recognition:
     case class Result(namedEntities: List[NamedEntity])
 so each named entity has a `representative` mention, a type `ner` which can be "PERSON", "LOCATION" etc. and a list of other mentions `coRefs` (which is empty unless the selected NLP implimentation is `Stanford CoreNLP NER + Coref `.
 
-If ` Heuristic post-processing` is selected then code in the UI modifies this data, deleting some NamedEntity items and replacing some with coRefs.
+If `Heuristic post-processing` is selected then code in the UI modifies this data, deleting some NamedEntity items and replacing some with coRefs.
 
 Data structure for the redaction request:
 
