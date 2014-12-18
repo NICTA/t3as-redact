@@ -16,7 +16,7 @@ The web services are:
 The [prototype UI](http://redaction.research.nicta.com.au:8080/redact/ui.html) supports the workflow:
 
 1. upload PDF, server responds with array of one string per page of text extracted from the PDF;
-1. user can edit the extracted text; alternatively the user can skip step 1 and start by pasting in text;
+1. user can edit the extracted text in the `Input Text` section or alternatively the user can skip step 1 and start by pasting in text - note that either of these actions will stop the final redaction step from working properly (this feature is useful in the prototype UI, but will not appear in the production UI);
 1. perform named entity recognition on the text, optionally with co-references (identifying subsequent references to the same entity);
 1. user can manipulate the named entity mentions highlighted in the `Processed Text` section:
   - delete,
