@@ -496,11 +496,16 @@ function redact(ev) {
 
 function redactPdf(ev) {
   var redact = $.map($("#entities input[type='checkbox']:checked"), function(x, idx) {
-    var ne = savedNamedEntities[getNeIdx($(x))]; // lookup namedEntity using each checkbox neIdx attr
+    var neIdx = getNeIdx($(x));
+    var ne = savedNamedEntities[neIdx]; // lookup namedEntity using each checkbox neIdx attr
+    var sel = getAttrSelector(neIdx);
+    var reason = $('#entities input[type=text]' + sel).val();
     // debug('redactPdf: ne =', ne);
     // flatten the representative ne and its coRefs
     return $.map([ ne.representative ].concat(ne.coRefs), function(a, idx) {
-      return pageOffsets.getPageOffset(a.start, a.end); // convert offsets into text from all pages to page and offset within page
+      var redactItem = pageOffsets.getPageOffset(a.start, a.end); // convert offsets into text from all pages to page and offset within page
+      redactItem.reason = reason;
+      return redactItem;
     });
   });
   debug('redactPdf: redact =', redact);
