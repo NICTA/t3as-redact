@@ -105,6 +105,22 @@ class RedactService {
     } finally tmp.delete
   }
 
+  @Path("echo")
+  @POST
+  @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
+  @Produces(Array("application/pdf"))
+  def echo(@FormDataParam("pdfFile") in: InputStream): Response = {
+    log.debug("echo...")
+    val stream = new StreamingOutput {
+      // invoked after redact has returned
+      override def write(os: OutputStream) = {
+        copy(in, os)
+        os.close
+      }
+    }
+    Response.ok(stream).build
+  }
+  
   @Path("redact")
   @POST
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
