@@ -17,7 +17,7 @@ function init()
   addEntityToList('location-entities', 5, 'Canberra', 'Reason');
   addEntityToList('location-entities', 2, 'Sydney', 'Reason');
   addEntityToList('date-entities', 1, '1 Jan 2014', 'Reason');
-  addEntityToList('number-entities', 2, '42,000,000', 'Reason');
+  addEntityToList('number-entities', 2, '42', 'Reason');
 }
 
 function showView(view)
@@ -97,7 +97,7 @@ function addEntityToList(listId, entityCount, entityName, reason)
 {
   var tr = "<tr>" +
     '<th></th>' +
-    '<td><input type="checkbox" /></td>' +
+    '<td><input type="checkbox" checked="checked" /></td>' +
     '<td class="entity-info">' +
       '<span class="badge pull-right">' + entityCount + '</span>' +
       '<div class="entity-name">' + entityName + '</div>' +
