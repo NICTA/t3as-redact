@@ -1,4 +1,3 @@
-
 html, body
 {   
   margin: 0;
@@ -6,51 +5,60 @@ html, body
   height: 100%;
 }
 
-.tr-table-container
+/* Layout */
+
+.layout-row, .layout-col { position: absolute; }
+.layout-row { left: 0; right: 0; }
+.layout-col { top: 0; bottom: 0; }
+.scroll-x { overflow-x: auto; }
+.scroll-y { overflow-y: auto; }
+
+/* Header and views */
+
+.layout-view
 {
-  display: table;
-  margin: 0;
-  height: 100%;
-  width: 100%;
-  margin-top: -100px;
-  padding: 100px 0 0 0;
-  -moz-box-sizing: border-box;
-  box-sizing: border-box;
+  position: absolute;
+  top: 100px;
+  left: 0;
+  bottom: 0;
+  right: 0;
 }
-header
+
+.layout-header
 {
-  background: #ddd;
   height: 100px;
-  padding: 15px;
+  background: #ddd;
+  padding: 0;
 }
 
-.row
+.layout-header table
 {
-  height: 100%;
-  display: table-row;
+  border-collapse: collapse;
+  width: 100%;
 }
 
-
-#view-redactions-sidebar
+.layout-header table td
 {
-  display: table-cell;
-  float: none;
-  background: #eee;
-  padding: 15px;
-  overflow: auto;
+  width: 20%;
+  vertical-align: top;
+  text-align: left;
+  padding: 10px 10px 0 10px;
 }
 
-#view-redactions-doc
+.layout-header table td.center
 {
-  display: table-cell;
-  float: none;
-  background: #fff;
-  padding: 15px;
+  width: 60%;
+  text-align: center;
+}
+
+.layout-header table td.right
+{
+  text-align: right; 
 }
 
 div#filename
 {
-  padding: 0 0 5px 0;
+  padding: 8px 0;
 }
 
 .tr-main-tabs .btn,
@@ -69,27 +77,12 @@ div#filename
 
 }
 
-div.tr-doc-container
-{
-  background-color: #808080;
-  display: table-cell;
-  padding: 15px 120px;
-}
-
-div.tr-document
-{
-  height: 100%;
-  box-sizing: border-box;
-  border: solid 1px #000;
-  background-color: #fff;
-  padding: 60px 60px 90px 60px;
-}
-
 div#start-drag-drop
 {
   margin-top: 30px;
   font-size: 140%;
   color: #333;
+  text-align: center;
 }
 
 div#start-drag-drop img
@@ -97,10 +90,69 @@ div#start-drag-drop img
   margin: 30px 0;
 }
 
-li.disabled
+
+/*** Original view ***/
+
+#view-original-doc
 {
-  cursor: pointer !important;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
 }
+
+
+/*** Redactions view ***/
+
+#view-redactions-sidebar
+{
+  background: #eee;
+  padding: 15px;
+  width: 300px;
+}
+
+#view-redactions-doc
+{
+  left: 300px;
+  right: 0;
+  background: #fff;
+  padding: 15px;
+}
+
+
+/*** Export view ***/
+
+#view-export-header
+{
+  background-color: #fff;
+  height: 55px;
+  padding: 10px 20px;
+}
+
+#view-export-doc
+{
+  top: 55px;
+  left: 0;
+  bottom: 0;
+  right: 0;
+}
+
+
+/*** ***/
+
+div.doc-container
+{
+  background-color: #666;
+  padding: 30px 120px;
+}
+
+div.document
+{
+  border: solid 1px #000;
+  background-color: #fff;
+  padding: 60px 60px 90px 60px;
+}
+
 
 #txt-search
 {
@@ -197,7 +249,7 @@ td.entity-info div.redaction-reason
 
 .redacted-text
 {
-  background: #000;
+  background: #333;
 }
 
 div.legal
@@ -205,5 +257,6 @@ div.legal
   width: 800px;
   font-size: .8em;
   color: #999;
-  margin: 100px auto 0 auto;
+  margin: 50px auto;
+  text-align: center;
 }

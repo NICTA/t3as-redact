@@ -21,132 +21,140 @@
     <script src="./js/redaction-ui.js"></script>
   </head>
   <body>
-    <header>
-        <div style="display: table; width: 100%;">
-          <div style="display: table-row;">
-            <div style="display: table-cell;width: 20%;">
-              <div class="dropdown">
-                <button class="btn btn-link dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-expanded="true">
-                  File <span class="caret"></span>
-                </button>
-                <ul class="dropdown-menu" role="menu">
-                  <li id="cmd-open-doc" role="presentation"><a role="menuitem" tabindex="-1" href="#" onclick="showOpenFileDialog()">Open</a></li>
-                  <li id="cmd-close-doc" role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#" onclick="closeFile()">Close</a></li>
-                  <li id="cmd-export" role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#">Export</a></li>
-                  <li role="presentation" class="divider"></li>
-                  <li id="cmd-settings" role="presentation"><a role="menuitem" tabindex="-1" href="#" data-toggle="modal" data-target="#settings-dialog">Settings</a></li>
-                </ul>
-              </div>
 
-              <input type="file" id="file-upload" name="" style="display: none;" />
-
+    <!-- Header -->
+    <div class="layout-row layout-header">
+      <table>
+        <tr>
+          <td>
+            <div class="dropdown">
+              <button class="btn btn-link dropdown-toggle" type="button" data-toggle="dropdown">
+                File <span class="caret"></span>
+              </button>
+              <ul class="dropdown-menu" role="menu">
+                <li id="cmd-open-doc" role="presentation"><a role="menuitem" tabindex="-1" href="#" onclick="showOpenFileDialog()">Open</a></li>
+                <li id="cmd-close-doc" role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#" onclick="closeFile()">Close</a></li>
+                <li id="cmd-export" role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#">Export</a></li>
+                <li role="presentation" class="divider"></li>
+                <li id="cmd-settings" role="presentation"><a role="menuitem" tabindex="-1" href="#" data-toggle="modal" data-target="#settings-dialog">Settings</a></li>
+              </ul>
             </div>
-
-            <div style="display: table-cell; text-align: center;">
-              <div id="filename">Text redaction</div>
-              <div id="view-nav" class="btn-group tr-main-tabs" data-toggle="buttons" style="display: none;">
-                <label id="btn-view-original" class="btn btn-default">
-                  <input type="radio" name="views" autocomplete="off" checked onchange="showView('view-original')"> Original
-                </label>
-                <label id="btn-view-redactions" class="btn btn-default active">
-                  <input type="radio" name="views" autocomplete="off" onchange="showView('view-redactions')"> Redactions
-                </label>
-                <label id="btn-view-export" class="btn btn-default">
-                  <input type="radio" name="views" autocomplete="off" onchange="showView('view-export')"> Export
-                </label>
-              </div>
+            <input type="file" id="file-upload" name="" style="display: none;" />
+          </td>
+          <td class="center">
+            <div id="filename">Text redaction</div>
+            <div id="view-nav" class="btn-group tr-main-tabs" data-toggle="buttons" style="display: none;">
+              <label id="btn-view-original" class="btn btn-default">
+                <input type="radio" name="views" autocomplete="off" checked onchange="showView('view-original')"> Original
+              </label>
+              <label id="btn-view-redactions" class="btn btn-default active">
+                <input type="radio" name="views" autocomplete="off" onchange="showView('view-redactions')"> Redactions
+              </label>
+              <label id="btn-view-export" class="btn btn-default">
+                <input type="radio" name="views" autocomplete="off" onchange="showView('view-export')"> Export
+              </label>
             </div>
+          </td>
+          <td class="right"></td>
+        </tr>
+      </table>
 
-            <div style="display: table-cell; text-align: right; width: 20%;">
-              <!-- No content displayed at top-right of header yet -->
-            </div>
-          </div>          
+    </div>
+
+    <!-- Start page view -->
+    <div id="view-start" class="layout-view scroll-y">
+      <div class="alert alert-warning" role="alert" style="width: 400px;margin: 20px auto;text-align: left;">
+        <b>Warning</b>: Your connection to this server is not secure.<br />
+        This service is intended for demonstration purposes only.
+      </div>
+      
+      <div id="start-drag-drop">
+        <img src="./images/start.png" />
+        <p>Drag and drop a document to begin</p>
+      </div>
+
+      <div class="legal">
+        Copyright &copy; 2014 NICTA. <a href="./legals/RedactionTool%20-%20WebsiteTermsOfUse%20-%203OCT2014.pdf">Terms of Use</a>, <a href="./legals/RedactionService-SupplementalPrivacyPolicy%20-3OCT14_v2.pdf">Privacy Policy</a> and <a href="https://github.com/NICTA/t3as-redact/blob/master/THIRD_PARTY_LICENSES">Acknowledgements</a>.<br />
+        The source code for this service is freely available under the AGPL and consists of the <a href="https://github.com/NICTA/t3as-redact">web service and user interface</a> and <a href="https://github.com/NICTA/t3as-pdf">PDF redaction</a>.
+      </div>
+    </div>
+
+    <!-- Original view -->
+    <div id="view-original" class="layout-view" style="display: none;">
+      <div id="view-original-doc" class="layout-row scroll-y doc-container">
+        <div class="document">
+          <p>Lorem ipsum dolor sit amet, Simon Smith adipiscing elit. Cras ultrices ultrices mauris, non tincidunt neque consequat vitae.</p>
+          <p>Phasellus auctor semper nulla. Ut fringilla pretium mattis. Nam bibendum enim at consectetur eleifend. Julie Brown dignissim velit, Department of Mollis lectus. Mauris tristique nisl sed ex condimentum, eu sagittis arcu laoreet. Phasellus ultrices erat a ante hendrerit iaculis. Peter James consectetur suscipit viverra. Integer vel massa auctor metus placerat consectetur ut placerat tortor. Fusce convallis facilisis dolor vel mattis.</p>
+          <p>Canberra eget turpis id viverra. Sydney dignissim sem eu lobortis lacinia. Duis vel mi mollis, aliquet nunc et, porttitor odio. Integer convallis urna ac augue suscipit elementum. Ms Julie Brown at urna nulla. Nam pretium efficitur risus, nec suscipit quam blandit nec. Maecenas ut eros sem. Vivamus Augue Corporation libero eget metus fermentum porttitor at eget velit.</p>
+          <p>Phasellus auctor semper nulla. Ut fringilla pretium mattis. Nam bibendum enim at consectetur eleifend. Ms Brown dignissim velit</p>
         </div>
+      </div>
+    </div>
 
-    </header>
+    <!-- Redactions view -->
+    <div id="view-redactions" class="layout-view" style="display: none;">
+      <div id="view-redactions-sidebar" class="layout-col sidebar scroll-y">
+        <form role="form">
+          <input type="search" class="form-control" id="txt-search" placeholder="Search">
+        </form>
 
-    <div class="tr-table-container">
+        <div class="category category-people">
+          People
+          <span class="badge pull-right">0</span>
+        </div>
+        <table id="people-entities" class="entity-list category-people"></table>
 
-        <div id="view-start" class="row tr-view">
-          <div class="col-md-12 no-float text-center">
-            <div class="alert alert-warning" role="alert" style="width: 400px;margin: 20px auto;text-align: left;"><b>Warning</b>: Your connection to this server is not secure.<br />This service is intended for demonstration purposes only.</div>
-            <div id="start-drag-drop">
-              <img src="./images/start.png" />
-              <p>Drag and drop a document to begin</p>
-            </div>
+        <div class="category category-organisations">
+          Organisations
+          <span class="badge pull-right">0</span>
+        </div>
+        <table id="organisation-entities" class="entity-list category-organisations"></table>
 
-            <div class="legal">
-              Copyright &copy; 2014 NICTA. <a href="./legals/RedactionTool%20-%20WebsiteTermsOfUse%20-%203OCT2014.pdf">Terms of Use</a>, <a href="./legals/RedactionService-SupplementalPrivacyPolicy%20-3OCT14_v2.pdf">Privacy Policy</a> and <a href="https://github.com/NICTA/t3as-redact/blob/master/THIRD_PARTY_LICENSES">Acknowledgements</a>.<br />
-              The source code for this service is freely available under the AGPL and consists of the <a href="https://github.com/NICTA/t3as-redact">web service and user interface</a> and <a href="https://github.com/NICTA/t3as-pdf">PDF redaction</a>.
-            </div>
+        <div class="category category-locations">
+          Locations
+          <span class="badge pull-right">0</span>
+        </div>
+        <table id="location-entities" class="entity-list category-locations"></table>
+
+        <div class="category category-dates">
+          Date, times and durations
+          <span class="badge pull-right">0</span>
+        </div>
+        <table id="date-entities" class="entity-list category-dates"></table>
+
+        <div class="category category-numbers">
+          Numbers
+          <span class="badge pull-right">0</span>
+        </div>
+        <table id="number-entities" class="entity-list category-numbers"></table>
+      </div>
+      <div id="view-redactions-doc" class="layout-col main scroll-y">
+          Doc
+      </div>
+    </div>
+
+    <!-- Export view -->
+    <div id="view-export" class="layout-view" style="display: none;">
+        <div id="view-export-header" class="layout-row">
+          <div style="margin-top: 8px;" class="pull-left">
+            <span class="glyphicon glyphicon-file" aria-hidden="true"></span>
+            <span id="redacted-filename">[redacted-filename]</span>
+          </div>
+          <div class="pull-right">
+            <button type="button" class="btn btn-primary">
+              <span class="glyphicon glyphicon-download-alt" aria-hidden="true"></span> Download
+            </button>
           </div>
         </div>
-
-        <div id="view-original" class="row tr-view tr-doc-container" style="display: none;">
-          <div class="col-md-12 no-float">
-            <div class="tr-document">
-              <p>Lorem ipsum dolor sit amet, Simon Smith adipiscing elit. Cras ultrices ultrices mauris, non tincidunt neque consequat vitae.</p>
-              <p>Phasellus auctor semper nulla. Ut fringilla pretium mattis. Nam bibendum enim at consectetur eleifend. Julie Brown dignissim velit, Department of Mollis lectus. Mauris tristique nisl sed ex condimentum, eu sagittis arcu laoreet. Phasellus ultrices erat a ante hendrerit iaculis. Peter James consectetur suscipit viverra. Integer vel massa auctor metus placerat consectetur ut placerat tortor. Fusce convallis facilisis dolor vel mattis.</p>
-              <p>Canberra eget turpis id viverra. Sydney dignissim sem eu lobortis lacinia. Duis vel mi mollis, aliquet nunc et, porttitor odio. Integer convallis urna ac augue suscipit elementum. Ms Julie Brown at urna nulla. Nam pretium efficitur risus, nec suscipit quam blandit nec. Maecenas ut eros sem. Vivamus Augue Corporation libero eget metus fermentum porttitor at eget velit.</p>
-              <p>Phasellus auctor semper nulla. Ut fringilla pretium mattis. Nam bibendum enim at consectetur eleifend. Ms Brown dignissim velit</p>
-            </div>
-          </div>
-        </div>
-    
-        <div id="view-redactions" class="row tr-view" style="display: none;">
-            <div id="view-redactions-sidebar" class="col-xs-3 col-sm-4 col-md-5">
-              <form role="form">
-                <input type="search" class="form-control" id="txt-search" placeholder="Search">
-              </form>
-
-              <div class="category category-people">
-                People
-                <span class="badge pull-right">0</span>
-              </div>
-              <table id="people-entities" class="entity-list category-people"></table>
-
-              <div class="category category-organisations">
-                Organisations
-                <span class="badge pull-right">0</span>
-              </div>
-              <table id="organisation-entities" class="entity-list category-organisations"></table>
-
-              <div class="category category-locations">
-                Locations
-                <span class="badge pull-right">0</span>
-              </div>
-              <table id="location-entities" class="entity-list category-locations"></table>
-
-              <div class="category category-dates">
-                Date, times and durations
-                <span class="badge pull-right">0</span>
-              </div>
-              <table id="date-entities" class="entity-list category-dates"></table>
-
-              <div class="category category-numbers">
-                Numbers
-                <span class="badge pull-right">0</span>
-              </div>
-              <table id="number-entities" class="entity-list category-numbers"></table>
-
-            </div>
-            <div id="view-redactions-doc" class="col-xs-9 col-sm-8 col-md-7">
-              Document text
-            </div>
-        </div>
-
-        <div id="view-export" class="row tr-view tr-doc-container" style="display: none;">
-          <div class="col-md-12 no-float">
-            <div class="tr-document">
-              <p>Lorem ipsum dolor sit amet, <span class="redacted-text">Simon Smith</span> adipiscing elit. Cras ultrices ultrices mauris, non tincidunt neque consequat vitae.</p>
-              <p>Phasellus auctor semper nulla. Ut fringilla pretium mattis. Nam bibendum enim at consectetur eleifend. <span class="redacted-text">Julie Brown</span> dignissim velit, Department of Mollis lectus. Mauris tristique nisl sed ex condimentum, eu sagittis arcu laoreet. Phasellus ultrices erat a ante hendrerit iaculis. <span class="redacted-text">Peter James</span> consectetur suscipit viverra. Integer vel massa auctor metus placerat consectetur ut placerat tortor. Fusce convallis facilisis dolor vel mattis.</p>
-              <p><span class="redacted-text">Canberra</span> eget turpis id viverra. <span class="redacted-text">Sydney</span> dignissim sem eu lobortis lacinia. Duis vel mi mollis, aliquet nunc et, porttitor odio. Integer convallis urna ac augue suscipit elementum. Ms Julie Brown at urna nulla. Nam pretium efficitur risus, nec suscipit quam blandit nec. Maecenas ut eros sem. Vivamus <span class="redacted-text">Augue Corporation</span> libero eget metus fermentum porttitor at eget velit.</p>
-              <p>Phasellus auctor semper nulla. Ut fringilla pretium mattis. Nam bibendum enim at consectetur eleifend. <span class="redacted-text">Ms Brown</span> dignissim velit</p>
-            </div>
+        <div id="view-export-doc" class="layout-row scroll-y doc-container">
+          <div class="document">
+            <p>Lorem ipsum dolor sit amet, <span class="redacted-text">Simon Smith</span> adipiscing elit. Cras ultrices ultrices mauris, non tincidunt neque consequat vitae.</p>
+            <p>Phasellus auctor semper nulla. Ut fringilla pretium mattis. Nam bibendum enim at consectetur eleifend. <span class="redacted-text">Julie Brown</span> dignissim velit, Department of Mollis lectus. Mauris tristique nisl sed ex condimentum, eu sagittis arcu laoreet. Phasellus ultrices erat a ante hendrerit iaculis. <span class="redacted-text">Peter James</span> consectetur suscipit viverra. Integer vel massa auctor metus placerat consectetur ut placerat tortor. Fusce convallis facilisis dolor vel mattis.</p>
+            <p><span class="redacted-text">Canberra</span> eget turpis id viverra. <span class="redacted-text">Sydney</span> dignissim sem eu lobortis lacinia. Duis vel mi mollis, aliquet nunc et, porttitor odio. Integer convallis urna ac augue suscipit elementum. Ms Julie Brown at urna nulla. Nam pretium efficitur risus, nec suscipit quam blandit nec. Maecenas ut eros sem. Vivamus <span class="redacted-text">Augue Corporation</span> libero eget metus fermentum porttitor at eget velit.</p>
+            <p>Phasellus auctor semper nulla. Ut fringilla pretium mattis. Nam bibendum enim at consectetur eleifend. <span class="redacted-text">Ms Brown</span> dignissim velit</p>
           </div>
         </div>
     </div>
-
 
     <div id="settings-dialog" class="modal fade">
       <div class="modal-dialog">
@@ -169,7 +177,7 @@
         </div>
       </div>
     </div>
-
+    
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
     <script src="./js/jquery.min.js"></script>

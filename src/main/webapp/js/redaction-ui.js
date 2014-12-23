@@ -23,7 +23,7 @@ function init()
 function showView(view)
 {
   // Hide all views
-  $('div.tr-view').hide();
+  $('div.layout-view').hide();
 
   // Display the selected view
   $('div#' + view).show();  
@@ -74,12 +74,18 @@ function openFile(pdfFile)
   // Set the document name
   $('div#filename').text(pdfFile.name)
 
+  // TODO: Set display filename for the redacted version (probably at a later stage)
+  $('span#redacted-filename').text(pdfFile.name.split('.')[0] + '_redacted.pdf')
+
   // Show the original PDF view
   showView('view-original');
 }
 
 function closeFile()
 {
+  // Clear selected file in the file upload input
+  $('input#file-upload').val('');
+
   // Hide the view naigation tabs
   $('div#view-nav').fadeOut();
 
