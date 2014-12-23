@@ -111,8 +111,11 @@ li.disabled
 
 .category
 {
+  background-image: url(../images/corner.png);
+  background-repeat: no-repeat;
+  background-position: bottom left;
   margin: 15px 0 0 0;
-  padding: 5px 10px;
+  padding: 5px 10px 5px 20px;
   color: #fff;
   cursor: pointer;
 }
@@ -126,27 +129,27 @@ li.disabled
 .category-people
 {
   
-  background: #F45B58;
+  background-color: #F45B58;
 }
 
 .category-organisations
 {
-  background: #EE9D47;
+  background-color: #EE9D47;
 }
 
 .category-locations
 {
-  background: #EBC44D;
+  background-color: #EBC44D;
 }
 
 .category-dates
 {
-  background: #68C14F;
+  background-color: #68C14F;
 }
 
 .category-numbers
 {
-  background: #48B1E9;
+  background-color: #48B1E9;
 }
 
 table.entity-list
@@ -162,7 +165,7 @@ table.entity-list td
 
 table.entity-list th
 {
-  padding: 0 5px 0 0;
+  padding: 0 8px 0 0;
 }
 
 table.entity-list td
