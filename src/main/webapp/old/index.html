@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Redaction</title>
+  <link rel="icon" type="image/ico" href="http://www.nicta.com.au/__data/assets/file/0014/28031/NICTALogo.ico" />
+  <link href="index.css" rel="stylesheet" type="text/css">
+
+  <script src="http://code.jquery.com/jquery-2.1.1.min.js" charset="utf-8"></script>
+  <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+  <script src="dndTree.js" charset="utf-8"></script>
+  <script src="common.js" charset="utf-8"></script>
+  <script src="index.js" charset="utf-8"></script>
+</head>
+
+<body>
+  <h1>Redaction</h1>
+  <h2>Load PDF</h2>
+  <div id="extractText">
+    <!-- extract uses pdfFile in an ajax call (does not submit form). Form submitted by redact button at end of page -->
+    <form id="redactForm" action="/redact" method="POST" enctype="multipart/form-data" target="pdf">
+      <input type="file" name="pdfFile" accept="application/pdf" />
+      <input type="hidden" name="redact" />
+      <button name="extract">Extract Text</button>
+    </form>
+  </div>
+  
+  <h2>Input Text</h2>
+  <div id="inputText">
+    <form>
+    <textarea name="text"></textarea>
+    <h3>NLP implementation</h3>
+    <input type="radio" name="nerImpl" id="nerImplCoreNLP"/><label for="nerImplCoreNLP">Stanford CoreNLP NER</label>
+    <input type="radio" name="nerImpl" id="nerImplCoreNLPCoref"/><label for="nerImplCoreNLPCoref">Stanford CoreNLP NER + Coref</label>
+    <br>
+    <input type="radio" name="nerImpl" id="nerImplOpenNLP"/><label for="nerImplOpenNLP">OpenNLP NER</label>
+    <br>
+    <input type="radio" name="nerImpl" id="nerImplNicta" checked="checked"/><label for="nerImplNicta">NICTA NER</label>
+    <br>
+    <input type="checkbox" name="nerPostProcess" id="nerPostProcess" checked="checked"/><label for="nerPostProcess">Heuristic post-processing</label>
+    <br>
+    <button name="process">Process</button>
+    </form>
+  </div>
+  
+  <h2>Processed Text</h2>
+  <div id="processedText"></div>
+  <div id="neCreateEdit">
+    <span class="label">Edit entities by selecting text above.</span>
+    <br/>
+    <span class="label">Created entity will be:</span>
+    <span id="neCreate"></span>
+    <br/>
+    <span class="label">Edited entity will be:</span>
+    <span id="neEdit"></span>
+  </div>
+  
+  <h2>Entities Tree</h2>
+  <div id="tree-container"></div>
+  
+  <h2>Entities List</h2>
+  <div id="entities">
+    <h3>People</h2>
+    <div id="people"></div>
+
+    <h3>Organizations</h2>
+    <div id="organizations"></div>
+
+    <h3>Locations</h2>
+    <div id="locations"></div>
+    
+    <h3>Dates, times, durations</h2>
+    <div id="dates"></div>
+    
+    <h3>Numbers</h2>
+    <div id="numbers"></div>
+  </div>
+
+  <h2>Redact PDF</h2>
+  <div id="redactPdf">
+    <button name="redact">Redact</button>
+  </div>
+  
+  <h2>Legal</h2>
+  Copyright © 2014 NICTA. <a href="RedactionTool - WebsiteTermsOfUse - 3OCT2014.pdf">Terms of Use</a>,
+  <a href="RedactionService-SupplementalPrivacyPolicy -3OCT14_v2.pdf">Privacy Policy</a> and
+  <a href="https://github.com/NICTA/t3as-redact/blob/master/THIRD_PARTY_LICENSES">Acknowledgements</a>.
+  <p>
+  The source code for this service is freely available under the AGPL and consists of the
+  <a href="https://github.com/NICTA/t3as-redact">web service and user interface</a> and
+  <a href="https://github.com/NICTA/t3as-pdf">PDF redaction</a>.
+</body>
+</html>

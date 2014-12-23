@@ -1,0 +1,158 @@
+html, body
+{   
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+.tr-table-container
+{
+    display: table;
+    margin: 0;
+    height: 100%;
+    width: 100%;
+    margin-top: -100px;
+    padding: 100px 0 0 0;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+header
+{
+    background: #ddd;
+    height: 100px;
+    padding: 15px;
+}
+
+.row
+{
+    height: 100%;
+    display: table-row;
+}
+
+
+#view-redactions-sidebar
+{
+    display: table-cell;
+    float: none;
+    background: #eee;
+    padding: 15px;
+}
+
+#view-redactions-doc
+{
+    display: table-cell;
+    float: none;
+    background: #fff;
+    padding: 15px;
+}
+
+div#filename
+{
+  padding: 0 0 5px 0;
+}
+
+.tr-main-tabs .btn,
+.tr-main-tabs .btn:hover,
+.tr-main-tabs .btn:active
+{
+  background-color: #f5f5f5;
+  border-color: #ddd !important;
+  padding: 8px 30px !important;
+}
+
+.tr-main-tabs .btn.active
+{
+  background: #666;
+  color: #fff;
+
+}
+
+div.tr-doc-container
+{
+  background-color: #808080;
+  display: table-cell;
+  padding: 15px 120px;
+}
+
+div.tr-document
+{
+  height: 100%;
+  box-sizing: border-box;
+  border: solid 1px #000;
+  background-color: #fff;
+  padding: 60px 60px 90px 60px;
+}
+
+div#start-drag-drop
+{
+  margin-top: 30px;
+  font-size: 140%;
+  color: #ccc;
+}
+
+div#start-drag-drop img
+{
+  margin: 30px 0;
+}
+
+li.disabled
+{
+  cursor: pointer !important;
+}
+
+#txt-search
+{
+  border-radius: 20px;
+  background-image: url(./images/start.png);
+  background-repeat: no-repeat;
+  background-position: top left;
+}
+
+.category
+{
+  margin: 15px 0 0 0;
+  padding: 5px 10px;
+  color: #fff;
+  cursor: pointer;
+}
+
+.category span.badge
+{
+  background: rgba(255, 255, 255, 0.5);
+  padding: 4px 8px;
+}
+
+.category-people
+{
+  
+  background: #F45B58;
+}
+
+.category-organisations
+{
+/* Rectangle 6: */
+background: #EE9D47;
+}
+
+.category-locations
+{
+/* Rectangle 7: */
+background: #EBC44D;
+}
+
+.category-dates
+{
+/* Rectangle 8: */
+background: #68C14F;
+}
+
+.category-numbers
+{
+/* Rectangle 10: */
+background: #48B1E9;
+}
+
+.redacted-text
+{
+  background: #000;
+}
