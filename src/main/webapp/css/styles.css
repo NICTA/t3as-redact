@@ -1,49 +1,51 @@
+
 html, body
 {   
-    margin: 0;
-    padding: 0;
-    height: 100%;
+  margin: 0;
+  padding: 0;
+  height: 100%;
 }
 
 .tr-table-container
 {
-    display: table;
-    margin: 0;
-    height: 100%;
-    width: 100%;
-    margin-top: -100px;
-    padding: 100px 0 0 0;
-    -moz-box-sizing: border-box;
-    box-sizing: border-box;
+  display: table;
+  margin: 0;
+  height: 100%;
+  width: 100%;
+  margin-top: -100px;
+  padding: 100px 0 0 0;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
 }
 header
 {
-    background: #ddd;
-    height: 100px;
-    padding: 15px;
+  background: #ddd;
+  height: 100px;
+  padding: 15px;
 }
 
 .row
 {
-    height: 100%;
-    display: table-row;
+  height: 100%;
+  display: table-row;
 }
 
 
 #view-redactions-sidebar
 {
-    display: table-cell;
-    float: none;
-    background: #eee;
-    padding: 15px;
+  display: table-cell;
+  float: none;
+  background: #eee;
+  padding: 15px;
+  overflow: auto;
 }
 
 #view-redactions-doc
 {
-    display: table-cell;
-    float: none;
-    background: #fff;
-    padding: 15px;
+  display: table-cell;
+  float: none;
+  background: #fff;
+  padding: 15px;
 }
 
 div#filename
@@ -87,7 +89,7 @@ div#start-drag-drop
 {
   margin-top: 30px;
   font-size: 140%;
-  color: #ccc;
+  color: #333;
 }
 
 div#start-drag-drop img
@@ -103,7 +105,6 @@ li.disabled
 #txt-search
 {
   border-radius: 20px;
-  background-image: url(./images/start.png);
   background-repeat: no-repeat;
   background-position: top left;
 }
@@ -130,29 +131,70 @@ li.disabled
 
 .category-organisations
 {
-/* Rectangle 6: */
-background: #EE9D47;
+  background: #EE9D47;
 }
 
 .category-locations
 {
-/* Rectangle 7: */
-background: #EBC44D;
+  background: #EBC44D;
 }
 
 .category-dates
 {
-/* Rectangle 8: */
-background: #68C14F;
+  background: #68C14F;
 }
 
 .category-numbers
 {
-/* Rectangle 10: */
-background: #48B1E9;
+  background: #48B1E9;
+}
+
+table.entity-list
+{
+  border-collapse: collapse;
+}
+
+table.entity-list th
+{
+  padding: 0 5px 0 0;
+}
+
+table.entity-list td
+{
+  background-color: #eee;
+  vertical-align: top;
+  text-align: left;
+  padding: 8px 0px 8px 12px;
+}
+
+td.entity-info
+{
+  width: 100%;
+}
+
+td.entity-info span.badge
+{
+  margin-right: 10px;
+  background: #ccc;
+  padding: 4px 8px;
+  color: #333;
+}
+
+td.entity-info div.redaction-reason
+{
+  color: #999;
+  font-style: italic;
 }
 
 .redacted-text
 {
   background: #000;
+}
+
+div.legal
+{
+  width: 800px;
+  font-size: .8em;
+  color: #999;
+  margin: 100px auto 0 auto;
 }

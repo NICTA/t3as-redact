@@ -24,20 +24,22 @@
     <header>
         <div style="display: table; width: 100%;">
           <div style="display: table-row;">
-
             <div style="display: table-cell;width: 20%;">
               <div class="dropdown">
                 <button class="btn btn-link dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-expanded="true">
                   File <span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu" role="menu">
-                  <li id="cmd-open-doc" role="presentation"><a role="menuitem" tabindex="-1" href="#" onclick="openDoc()">Open</a></li>
-                  <li id="cmd-close-doc" role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#" onclick="closeDoc()">Close</a></li>
+                  <li id="cmd-open-doc" role="presentation"><a role="menuitem" tabindex="-1" href="#" onclick="showOpenFileDialog()">Open</a></li>
+                  <li id="cmd-close-doc" role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#" onclick="closeFile()">Close</a></li>
                   <li id="cmd-export" role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#">Export</a></li>
                   <li role="presentation" class="divider"></li>
                   <li id="cmd-settings" role="presentation"><a role="menuitem" tabindex="-1" href="#" data-toggle="modal" data-target="#settings-dialog">Settings</a></li>
                 </ul>
               </div>
+
+              <input type="file" id="file-upload" name="" style="display: none;" />
+
             </div>
 
             <div style="display: table-cell; text-align: center;">
@@ -56,11 +58,7 @@
             </div>
 
             <div style="display: table-cell; text-align: right; width: 20%;">
-              <!--
-              <button type="button" class="btn btn-link" data-toggle="modal" data-target="#settings-dialog">
-                <span class="glyphicon glyphicon-cog" aria-hidden="true"></span><span style="margin-left: 8px">Settings</span>
-              </button>
-              -->
+              <!-- No content displayed at top-right of header yet -->
             </div>
           </div>          
         </div>
@@ -69,11 +67,17 @@
 
     <div class="tr-table-container">
 
-        <div id="view-start" class="row tr-view" style="display: non;">
+        <div id="view-start" class="row tr-view">
           <div class="col-md-12 no-float text-center">
+            <div class="alert alert-warning" role="alert" style="width: 400px;margin: 20px auto;text-align: left;"><b>Warning</b>: Your connection to this server is not secure.<br />This service is intended for demonstration purposes only.</div>
             <div id="start-drag-drop">
               <img src="./images/start.png" />
               <p>Drag and drop a document to begin</p>
+            </div>
+
+            <div class="legal">
+              Copyright &copy; 2014 NICTA. <a href="./legals/RedactionTool%20-%20WebsiteTermsOfUse%20-%203OCT2014.pdf">Terms of Use</a>, <a href="./legals/RedactionService-SupplementalPrivacyPolicy%20-3OCT14_v2.pdf">Privacy Policy</a> and <a href="https://github.com/NICTA/t3as-redact/blob/master/THIRD_PARTY_LICENSES">Acknowledgements</a>.<br />
+              The source code for this service is freely available under the AGPL and consists of the <a href="https://github.com/NICTA/t3as-redact">web service and user interface</a> and <a href="https://github.com/NICTA/t3as-pdf">PDF redaction</a>.
             </div>
           </div>
         </div>
@@ -99,22 +103,31 @@
                 People
                 <span class="badge pull-right">0</span>
               </div>
+              <table id="people-entities" class="entity-list category-people"></table>
+
               <div class="category category-organisations">
                 Organisations
                 <span class="badge pull-right">0</span>
               </div>
+              <table id="organisation-entities" class="entity-list category-organisations"></table>
+
               <div class="category category-locations">
                 Locations
                 <span class="badge pull-right">0</span>
               </div>
+              <table id="location-entities" class="entity-list category-locations"></table>
+
               <div class="category category-dates">
                 Date, times and durations
                 <span class="badge pull-right">0</span>
               </div>
+              <table id="date-entities" class="entity-list category-dates"></table>
+
               <div class="category category-numbers">
                 Numbers
                 <span class="badge pull-right">0</span>
               </div>
+              <table id="number-entities" class="entity-list category-numbers"></table>
 
             </div>
             <div id="view-redactions-doc" class="col-xs-9 col-sm-8 col-md-7">
