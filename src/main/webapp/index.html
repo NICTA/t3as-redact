@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Text redaction</title>
-
+    <link rel="icon" type="image/ico" href="http://www.nicta.com.au/__data/assets/file/0014/28031/NICTALogo.ico" />
     <link rel="stylesheet" type="text/css" href="./css/styles.css" >
 
     <!-- Bootstrap -->
@@ -30,29 +30,29 @@
                   File <span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu" role="menu">
-                  <li id="cmd-open-doc" role="presentation"><a role="menuitem" tabindex="-1" href="#" onclick="showOpenFileDialog()">Open</a></li>
+                  <li id="cmd-open-doc" role="presentation"><a role="menuitem" tabindex="-1" href="#" onclick="controller.showOpenFileDialog()">Open</a></li>
                   <li id="cmd-close-doc" role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#" onclick="closeFile()">Close</a></li>
                   <li id="cmd-export" role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#">Export</a></li>
                   <li role="presentation" class="divider"></li>
                   <li id="cmd-settings" role="presentation"><a role="menuitem" tabindex="-1" href="#" data-toggle="modal" data-target="#settings-dialog">Settings</a></li>
                 </ul>
               </div>
-
-              <input type="file" id="file-upload" name="" style="display: none;" />
-
+              <form id="file-upload-form" action="echo" method="post" enctype="multipart/form-data" target="orig-pdf">
+                <input type="file" id="file-upload" name="pdfFile" accept="application/pdf" style="display: none;" />
+              </form>
             </div>
 
             <div style="display: table-cell; text-align: center;">
               <div id="filename">Text redaction</div>
               <div id="view-nav" class="btn-group tr-main-tabs" data-toggle="buttons" style="display: none;">
                 <label id="btn-view-original" class="btn btn-default">
-                  <input type="radio" name="views" autocomplete="off" checked onchange="showView('view-original')"> Original
+                  <input type="radio" name="views" autocomplete="off" checked onchange="controller.showView('view-original')"> Original
                 </label>
                 <label id="btn-view-redactions" class="btn btn-default active">
-                  <input type="radio" name="views" autocomplete="off" onchange="showView('view-redactions')"> Redactions
+                  <input type="radio" name="views" autocomplete="off" onchange="controller.showView('view-redactions')"> Redactions
                 </label>
                 <label id="btn-view-export" class="btn btn-default">
-                  <input type="radio" name="views" autocomplete="off" onchange="showView('view-export')"> Export
+                  <input type="radio" name="views" autocomplete="off" onchange="controller.showView('view-export')"> Export
                 </label>
               </div>
             </div>
@@ -69,7 +69,7 @@
 
         <div id="view-start" class="row tr-view">
           <div class="col-md-12 no-float text-center">
-            <div class="alert alert-warning" role="alert" style="width: 400px;margin: 20px auto;text-align: left;"><b>Warning</b>: This demonstration service is not secure and uploaded data could be captured by a third-party. Do not upload any confidential information.</div>
+            <div class="alert alert-warning" role="alert" style="width: 400px;margin: 20px auto;text-align: left;"><b>Warning</b>: This demonstration service does not encrypt your data and anything uploaded could be captured by a third-party. Do not upload any confidential information.</div>
             <div id="start-drag-drop">
               <img src="./images/start.png" />
               <p>Drag and drop a document to begin</p>
@@ -85,10 +85,7 @@
         <div id="view-original" class="row tr-view tr-doc-container" style="display: none;">
           <div class="col-md-12 no-float">
             <div class="tr-document">
-              <p>Lorem ipsum dolor sit amet, Simon Smith adipiscing elit. Cras ultrices ultrices mauris, non tincidunt neque consequat vitae.</p>
-              <p>Phasellus auctor semper nulla. Ut fringilla pretium mattis. Nam bibendum enim at consectetur eleifend. Julie Brown dignissim velit, Department of Mollis lectus. Mauris tristique nisl sed ex condimentum, eu sagittis arcu laoreet. Phasellus ultrices erat a ante hendrerit iaculis. Peter James consectetur suscipit viverra. Integer vel massa auctor metus placerat consectetur ut placerat tortor. Fusce convallis facilisis dolor vel mattis.</p>
-              <p>Canberra eget turpis id viverra. Sydney dignissim sem eu lobortis lacinia. Duis vel mi mollis, aliquet nunc et, porttitor odio. Integer convallis urna ac augue suscipit elementum. Ms Julie Brown at urna nulla. Nam pretium efficitur risus, nec suscipit quam blandit nec. Maecenas ut eros sem. Vivamus Augue Corporation libero eget metus fermentum porttitor at eget velit.</p>
-              <p>Phasellus auctor semper nulla. Ut fringilla pretium mattis. Nam bibendum enim at consectetur eleifend. Ms Brown dignissim velit</p>
+              <iframe id="orig-pdf" name="orig-pdf"></iframe>
             </div>
           </div>
         </div>
@@ -176,8 +173,9 @@
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="js/bootstrap.min.js"></script>
     <script>
+    var controller;
     $(function() {
-      init();
+      controller = new Controller();
     })
     </script>
   </body>
