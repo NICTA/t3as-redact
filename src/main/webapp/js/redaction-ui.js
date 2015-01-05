@@ -250,10 +250,20 @@ Client.prototype.coreNlpNERWithCoref = function(txt, success, error) {
 }
 
 /**
- * Controller: 
+ * Controller: initialization
  */
 function Controller() {
   var self = this;
+  
+  // map multiple named entity types used by the different NERs to one label and class name (the first in the list) used in the UI
+  this.tableConfig = [
+    { parent : $('#people'), classes : [ 'PERSON' ], label : 'Person' },
+    { parent : $('#organizations'), classes : [ 'ORGANIZATION', 'UNKNOWN' ], label : 'Organization' },
+    { parent : $('#locations'), classes : [ 'LOCATION' ], label : 'Location' },
+    { parent : $('#dates'), classes : [ 'DATE', 'TIME' ], label : 'Date, time, duration' },
+    { parent : $('#numbers'), classes : [ 'NUMBER', 'PERCENT', 'PERCENTAGE', 'MONEY' ], label : 'Number' }
+  ];
+
   this.client = new Client(
     window.location.protocol === 'file:'
     ? 'http://203.143.165.82:8080/redact/rest/v1.0' // use this when page served from a local file during dev
@@ -263,56 +273,47 @@ function Controller() {
   $('#file-upload-form').attr('action', this.client.baseUrl + '/echo');
   
   // Respond to file selection from user
-  $('input#file-upload').on('change', function(ev) {
+  $('#file-upload').on('change', function(ev) {
     // log.debug('init: ev.target.files =', ev.target.files);
-    self.openFile(ev.target.files[0]); 
+    self.openFile(ev.target.files[0]);
   });
 
   // Wire up temporary drag-drop indicator.
   // TODO: Update when document drag-drop functionality is implemented
-  var img = $('div#start-drag-drop img');
+  var img = $('#start-drag-drop img');
   img.mouseover(function() { img.attr('src', 'images/start_hover.png') });
   img.mouseout(function() { img.attr('src', 'images/start.png') });
-
-  // Add sample entities
-  this.addEntityToList('people-entities', 2, 'Julie Brown', 'Reason');
-  this.addEntityToList('people-entities', 3, 'Peter Smith', 'Reason');
-  this.addEntityToList('organisation-entities', 1, 'Department of Mollis', 'Reason');
-  this.addEntityToList('location-entities', 5, 'Canberra', 'Reason');
-  this.addEntityToList('location-entities', 2, 'Sydney', 'Reason');
-  this.addEntityToList('date-entities', 1, '1 Jan 2014', 'Reason');
-  this.addEntityToList('number-entities', 2, '42', 'Reason');  
 };
 
 Controller.prototype.showView = function(view) {
   // Hide all views
-  $('div.tr-view').hide();
+  $('div.layout-view').hide();
 
   // Display the selected view
-  $('div#' + view).show();  
+  $('#' + view).show();  
 };
 
 Controller.prototype.showOpenFileDialog = function() {
-  $('input#file-upload').trigger('click');
+  $('#file-upload').trigger('click');
 };
 
 Controller.prototype.openFile = function(pdfFile) {
   var self = this;
   
-  // Close currently open file
-  this.closeFile();
-
-  $('form#file-upload-form').submit(); // load orig PDF into iframe
+  $('#file-upload-form').submit(); // load orig PDF into iframe
 
   // Select the 'Original' view tab and display the tabs
-  $('label#btn-view-original').button('toggle');
-  $('div#view-nav').fadeIn();
+  $('#btn-view-original').button('toggle');
+  $('#view-nav').fadeIn();
 
   // Enable the close command on the file menu
-  $('li#cmd-close-doc').removeClass('disabled');
+  $('#cmd-close-doc').removeClass('disabled');
   
   // Set the document name
-  $('div#filename').text(pdfFile.name)
+  $('#filename').text(pdfFile.name)
+
+  // TODO: Set display filename for the redacted version (probably at a later stage)
+  $('#redacted-filename').text(pdfFile.name.split('.')[0] + '_redacted.pdf')
 
   // Show the original PDF view
   this.showView('view-original');
@@ -329,14 +330,17 @@ Controller.prototype.openFile = function(pdfFile) {
 };
 
 Controller.prototype.closeFile = function() {
+  // Clear selected file in the file upload input
+  $('#file-upload').val('');
+
   // Hide the view naigation tabs
-  $('div#view-nav').fadeOut();
+  $('#view-nav').fadeOut();
 
   // Disable the close command on the file menu
-  $('li#cmd-close-doc').addClass('disabled');
+  $('#cmd-close-doc').addClass('disabled');
 
   // Reset the title
-  $('div#filename').text('Text redaction')
+  $('#filename').text('Text redaction')
 
   // Return to the start (drag-drop) view
   this.showView('view-start');
@@ -371,6 +375,14 @@ Controller.prototype.processText = function(pages) {
 //    $("span[neIdx]", elem)
 //      .on("mouseenter", function(ev) { highlight(getNeIdx(getTarget(ev))); })
 //      .on("mouseleave", function(ev) { unhighlight(getNeIdx(getTarget(ev))); });
+    self.populateEntities();
+//    self.addEntityToList($('#people-entities'), 2, 'Julie Brown', 'Reason');
+//    self.addEntityToList($('#people-entities'), 3, 'Peter Smith', 'Reason');
+//    self.addEntityToList($('#organisation-entities'), 1, 'Department of Mollis', 'Reason');
+//    self.addEntityToList($('#location-entities'), 5, 'Canberra', 'Reason');
+//    self.addEntityToList($('#location-entities'), 2, 'Sydney', 'Reason');
+//    self.addEntityToList($('#date-entities'), 1, '1 Jan 2014', 'Reason');
+//    self.addEntityToList($('number-entities'), 2, '42', 'Reason');  
   };
   
   function error() {};
@@ -542,19 +554,30 @@ Controller.prototype.postProcess = function(namedEntities) {
   return r;
 };
 
-Controller.prototype.addEntityToList = function(listId, entityCount, entityName, reason) {
-  var tr = "<tr>" +
-    '<th></th>' +
-    '<td><input type="checkbox" checked="checked" /></td>' +
-    '<td class="entity-info">' +
-      '<span class="badge pull-right">' + entityCount + '</span>' +
-      '<div class="entity-name">' + entityName + '</div>' +
-      '<div class="redaction-reason">' + reason + '</div>' +
-    '</td>' +
-  '</tr>';
-
-  $('table#' + listId).append(tr);
-}
+Controller.prototype.populateEntities = function() {
+  var self = this;
+  
+  var elem = $("#view-redactions-sidebar .generated-entities"); 
+  elem.empty();
+  $.each(this.tableConfig, function(idx, tblCfg) {
+    elem.append(
+      $("<div>").addClass(tblCfg.classes[0])
+        .append($("<div>").addClass("category").text(tblCfg.label).append($("<span>").addClass("badge pull-right")))
+        .append($("<table>").addClass("entity-list").append($.map(self.namedEntities, function(ne, idx) {
+          return tblCfg.classes.indexOf(ne.ner) === -1 ? undefined
+              : $('<tr>').append(
+                  $("<td>").append($("<input>").attr({type: "checkbox", neIdx: idx}))
+                ).append(
+                  $("<td>").addClass("entity-info")
+                    .append($("<span>").addClass("badge pull-right").text(ne.coRefs.length + 1))
+                    .append($("<div>").addClass("entity-name").text(ne.representative.text)) // TODO: do I need document.createTextNode(t) to properly escape the text?
+                    .append($("<div>").addClass("redaction-reason").text("reason"))
+                );
+          
+        })))
+    );
+  });
+};
 
 
 
