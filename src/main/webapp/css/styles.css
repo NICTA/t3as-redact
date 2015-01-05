@@ -93,21 +93,14 @@ div#start-drag-drop img
 
 /*** Original view ***/
 
-/* #view-original-doc */
-/* { */
-/*   top: 0; */
-/*   left: 0; */
-/*   bottom: 0; */
-/*   right: 0; */
-/* } */
-
-
-#orig-pdf, #export-pdf
+#orig-pdf
 {
-  left: 0;
-  right: 0; 
+  position: absolute;
+  top: 0;
+  left: 0; 
   width: 100%;
   height: 100%;
+  border: 0;
 }
 
 /*** Redactions view ***/
@@ -138,6 +131,15 @@ div#start-drag-drop img
   padding: 10px 20px;
 }
 
+#export-pdf
+{
+  position: absolute;
+  top: 55px;
+  left: 0; 
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
 
 /*** ***/
 
