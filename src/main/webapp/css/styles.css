@@ -56,9 +56,13 @@ html, body
   text-align: right; 
 }
 
-div#filename
+#filename
 {
   padding: 8px 0;
+}
+
+#file-upload-form input {
+  display: none;
 }
 
 .tr-main-tabs .btn,
@@ -90,10 +94,9 @@ div#start-drag-drop img
   margin: 30px 0;
 }
 
-
 /*** Original view ***/
 
-#orig-pdf
+#view-original iframe
 {
   position: absolute;
   top: 0;
@@ -131,7 +134,7 @@ div#start-drag-drop img
   padding: 10px 20px;
 }
 
-#export-pdf
+#view-export iframe
 {
   position: absolute;
   top: 55px;
@@ -182,32 +185,32 @@ div.document
 }
 
 
-#view-redactions-doc span {
+#view-redactions-doc span, #view-redactions .dropdown-menu .entity-type {
   color: white;
 }
 
-#view-redactions-sidebar .PERSON .category, #view-redactions-doc span.person
+#view-redactions-sidebar .person .category, #view-redactions-doc .person, #view-redactions .dropdown-menu .person
 {
   
   background-color: #F45B58;
 }
 
-#view-redactions-sidebar .ORGANIZATION .category, #view-redactions-doc span.organization
+#view-redactions-sidebar .organization .category, #view-redactions-doc .organization, #view-redactions .dropdown-menu .organization
 {
   background-color: #EE9D47;
 }
 
-#view-redactions-sidebar .LOCATION .category, #view-redactions-doc span.location
+#view-redactions-sidebar .location .category, #view-redactions-doc .location, #view-redactions .dropdown-menu .location
 {
   background-color: #EBC44D;
 }
 
-#view-redactions-sidebar .DATE .category, #view-redactions-doc span.date
+#view-redactions-sidebar .date .category, #view-redactions-doc .date, #view-redactions .dropdown-menu .date
 {
   background-color: #68C14F;
 }
 
-#view-redactions-sidebar .NUMBER .category, #view-redactions-doc span.number
+#view-redactions-sidebar .number .category, #view-redactions-doc .number, #view-redactions .dropdown-menu .number
 {
   background-color: #48B1E9;
 }

@@ -1,25 +1,22 @@
 /**
  * Logger
  */
-function Logger() {};
-
-Logger.prototype.debug = function() {
-  // $('#debug').append('DEBUG: ' + s + '<br/>');
-  console.log(arguments);
+var log = {
+  debug: function() {
+    // $('#debug').append('DEBUG: ' + s + '<br/>');
+    console.log(arguments);
+  },
+  
+  error: function(s, e) {
+    // $('#error').append('ERROR: ' + s + ' ' + e + '<br/>');
+    console.log(s, e.stack);
+  },
+  
+  ajaxError: function(jqXHR, textStatus, errorThrown) {
+    this.debug('ajaxError: jqXHR =', jqXHR, 'textStatus =', textStatus);
+    this.error('ajaxError:', errorThrown);
+  }
 };
-
-Logger.prototype.error = function(s, e) {
-  // $('#error').append('ERROR: ' + s + ' ' + e + '<br/>');
-  console.log(s, e.stack);
-};
-
-// handle unsuccessful ajax response
-Logger.prototype.ajaxError = function(jqXHR, textStatus, errorThrown) {
-  this.debug('ajaxError: jqXHR =', jqXHR, 'textStatus =', textStatus);
-  this.error('ajaxError:', errorThrown);
-};
-
-var log = new Logger();
 
 /**
  * Markup: insert markup into input string
@@ -105,6 +102,229 @@ Set.prototype.containsWords = function(s) {
 };
 
 /**
+ * A reference to a span in the text, that is one of:
+ * a) a representative mention of a named entity NeRef(neIdx, -1);
+ * b) a secondary mention or coRef of a named entity NeRef(neIdx, corefIdx);
+ * c) nothing/invalid NeRef(-1, -1).
+ */
+function NeRef(neIdx, corefIdx) {
+  this.neIdx = neIdx;
+  this.corefIdx = corefIdx;
+};
+
+NeRef.prototype.eq = function(x) {
+  return this.neIdx === x.neIdx && this.corefIdx === x.corefIdx;
+};
+
+NeRef.prototype.combine = function(x) {
+  return x.neIdx === -1 || this.eq(x) ? this 
+    : this.neIdx === -1 ? x
+    : new NeRef(-1, -1);
+};
+
+var util = {
+  /**
+   * Transform response from NICTA NER into same format as CoreNLP/OpenNLP services
+   * 
+   * @param data response from NICTA NER, format:
+   * <pre>
+   * [                                                           // array of sentences
+   *   [                                                         // array of phrases in sentence 
+   *     {                                                       // struct per phrase 
+   *       phrase: [ { startIndex: 0, text: "Mickey" }, ... ],   // words in phrase
+   *       phraseType: "PERSON"                                  // class of named entity
+   *     }, ...
+   *   ], 
+   * ... ]
+   * </pre>
+   * @param txt input text
+   * @returns namedEntities in same format as CoreNLP service
+   */
+  transformNictaNER: function (data, txt) {
+    var ners = $.map(data.phrases, function(sentence, sIdx) {
+      return $.map(sentence, function(x, xIdx) { 
+        var str = x.phrase[0].startIndex;
+        var last = x.phrase[x.phrase.length - 1];
+        var end = last.startIndex + last.text.length;
+        // log.debug('util.transformNictaNER:', 'x =', x, 'str =', str, 'end =', end, 'last =', last);
+        return {
+          representative : { start : str, end : end, text : txt.substring(str, end) },
+          ner : x.phraseType.entityClass,
+          coRefs : []
+        };
+      });
+    });
+    return { namedEntities: ners };
+  },
+  
+  /**
+   * @param acro the purported acronym
+   * @param term the term
+   * @returns {Boolean} true if acro is the acronym of term
+   */
+  isAcronym: function(acro, term) {
+    var arr = term.split(/ +/);
+    var ac = '';
+    for (i  = 0; i < arr.length; ++i) {
+      ac += arr[i].charAt(0).toUpperCase();
+    };
+    log.debug('util.isAcronym: ', 'acro', acro, 'term', term, 'ac', ac);
+    return ac === acro;
+  },
+ 
+  /**
+   * Heuristic post processing of NER result.
+   * Rules:<ol>
+   * <li>delete any items longer than 80 chars
+   * <li>treat subsequent item of same type and same text as coref
+   * <li>if type is PERSON the 'same text' criteria is relaxed so that if the subsequent item contains only words contained in the first mention it is considered a match,
+   *     so that 'Abbott' or 'Tony' will be taken to be a reference to a preceding 'Tony Abbott'.
+   * <li>exclude common titles Mr|Mrs|Miss|Ms|Dr from above matching for PERSON.
+   * <li>same as rule 3 but for ORGANIZATION.
+   * <li>for ORGANIZATION also accept an acronym.
+   * </ol>
+   * In/output object of type Result:<pre>
+   *   case class Result(namedEntities: List[NamedEntity])
+   *   case class NamedEntity(representative: Mention, ner: String, coRefs: List[Mention])
+   *   case class Mention(start: Int, end: Int, text: String)
+   * </pre>  
+   * @param data
+   * @return modified data
+   * 
+   * Bug: with Leif's PDF text + CoreNLP with coRef
+   * First result ne has: start = 64, end = 76 and coref[1] is the same!
+   * Oh, it's not my bug, that is in the data produced by CoreNLP. Looks like we have to filter that!
+   */
+  postProcess: function(namedEntities) {
+    log.debug('util.postProcess:', 'namedEntities =', namedEntities);
+    var self = this;
+    
+    var neMap = {
+      map: {}, // key -> { ne: the ne, words: Set of words in ne.representative.text } 
+      key: function(ne) { return ne.ner + '~' + ne.representative.text; },
+      predicate: function(m) { return m.text.length <= 80; }, //rule 1
+      comparitor: function(a,b) {                                          // sort
+        var i = a.representative.start - b.representative.start;           // start ascending
+        return i != 0 ? i : b.representative.end - a.representative.end;   // then end descending (to get longest one first)
+      },
+      NOT_FOUND: '',
+      EMPTY_SET: new Set(),
+      lookupKey: function(k, ne) {
+        if (k in this.map) return k; // rule 2
+        if (ne.ner === 'PERSON') {
+          for (p in this.map) {
+            var v = this.map[p];
+            //                                   rule 3                               rule 4
+            if (v.ne.ner === 'PERSON' && v.words.containsWords(ne.representative.text.replace(/\b(?:Mr|Mrs|Miss|Ms|Dr)\.? /, ''))) return p;
+          };
+        };
+        if (ne.ner === 'ORGANIZATION') {
+          for (p in this.map) {
+            var v = this.map[p];
+            //                                          rule 5                                   rule 6
+            if (v.ne.ner === 'ORGANIZATION' && (v.words.containsWords(ne.representative.text) || util.isAcronym(ne.representative.text, v.ne.representative.text))) return p;
+          };
+        };
+        return this.NOT_FOUND;
+      },
+      add: function(ne) {
+        var k = this.key(ne);
+        var p = this.lookupKey(k, ne);
+        if (p === this.NOT_FOUND) {
+          // save first mention
+          var words = this.EMPTY_SET;
+          if (ne.ner === 'PERSON' || ne.ner === 'ORGANIZATION') {
+            words = new Set();
+            words.addWords(ne.representative.text); // rules 3 & 5
+          };
+          this.map[k] = { ne: ne, words: words };
+        } else {
+          // append this ne (including its corefs) as corefs to previous mention
+          var prev = this.map[p].ne;
+          prev.coRefs = prev.coRefs.concat(ne.representative, ne.coRefs).filter(this.predicate);
+        };
+      },
+      addAll: function(nes) {
+        nes.sort(this.comparitor);
+        for (var i = 0; i < nes.length; i++) {
+          var ne = nes[i];
+          if (this.predicate(ne.representative)) {
+            neMap.add(ne);
+          } else {
+            // skip representative mention, but add corefs
+            var corefs = ne.coRefs.filter(this.predicate);
+            if (corefs.length > 0) {
+              corefs.sort(this.comparitor);
+              ne.representative = corefs[0];
+              ne.coRefs = corefs.slice(1);
+              neMap.add(ne);
+            };
+          }
+        };
+      },
+      result: function() {
+        return $.map(this.map, function(v, k) {
+          return v.ne;
+        });
+      }
+    };
+    
+    neMap.addAll(namedEntities);
+    var r = neMap.result();
+    log.debug('util.postProcess:', 'return =', r);
+    return r;
+  },
+  
+  /**
+   * @param el jQuery object representing an element or set of siblings
+   * @returns array of raw Text nodes in doc order
+   */
+  getTextDescendantsInDocOrder: function(el) {
+    var self = this;
+    return $.map(el, function(c, idx) {
+      return c.nodeType == 3 ? c
+          : c.nodeType == 1 ? self.getTextDescendantsInDocOrder($(c).contents())
+          : [];
+    }); 
+  },
+  
+  /**
+   * Get text offset relative to elem.
+   * @param offset relative to container
+   * @param container a text node
+   * @param elem ancestor of container
+   * @return offset + sum of lengths of all text nodes under elem which preceed containiner 
+   */
+  getTextOffset: function(offset, container, elem) {
+    var txts = this.getTextDescendantsInDocOrder(elem);
+    var find = txts.indexOf(container);
+    var sum = offset;
+    for (i = 0; i < find; ++i) sum += txts[i].length;
+    return sum;
+  },
+  
+  /**
+   * Find the first representative or coref mention that covers the given offset.
+   * TODO: with post processing there will only be one, but without there may be multiple overlapping mentions, so maybe we should return all of them.
+   * @param data namedEntities
+   * @param offset
+   * @returns { neIdx: neIdx, corefIdx: corefIdx } with -1 for not found
+   */
+  findNeRef: function(namedEntities, offset) {
+    function inM(m) { return m.start <= offset && offset <= m.end; };
+    for (neIdx = 0; neIdx < namedEntities.length; ++neIdx) {
+      var ne = namedEntities[neIdx];
+      if (inM(ne.representative)) return new NeRef(neIdx, -1); // -1 for corefIdx because its found in representative mention
+      for (corefIdx = 0; corefIdx < ne.coRefs.length; ++corefIdx) {
+        if (inM(ne.coRefs[corefIdx])) return new NeRef(neIdx, corefIdx);
+      };
+    };
+    return new NeRef(-1, -1);
+  }
+
+};
+
+/**
  * Client: handle interaction with server
  */
 function Client(baseUrl) {
@@ -158,7 +378,7 @@ Client.prototype.nictaNER = function(txt, success, error) {
       success : function(data, textStatus, jqXHR) {
         try {
           log.debug('Client.nictaNER success:', 'data =', data, 'textStatus =', textStatus, 'jqXHR =', jqXHR);
-          success(self.transformNictaNER(data, txt));
+          success(util.transformNictaNER(data, txt));
         } catch (e) {
           log.error('Client.nictaNER success:', e);
           error();
@@ -173,40 +393,6 @@ Client.prototype.nictaNER = function(txt, success, error) {
     log.error('Client.nictaNER:', e);
     error();
   };
-};
-
-/**
- * Transform response from NICTA NER into same format as CoreNLP/OpenNLP services
- * 
- * @param data response from NICTA NER, format:
- * <pre>
- * [                                                           // array of sentences
- *   [                                                         // array of phrases in sentence 
- *     {                                                       // struct per phrase 
- *       phrase: [ { startIndex: 0, text: "Mickey" }, ... ],   // words in phrase
- *       phraseType: "PERSON"                                  // class of named entity
- *     }, ...
- *   ], 
- * ... ]
- * </pre>
- * @param txt input text
- * @returns namedEntities in same format as CoreNLP service
- */
-Client.prototype.transformNictaNER = function (data, txt) {
-  var ners = $.map(data.phrases, function(sentence, sIdx) {
-    return $.map(sentence, function(x, xIdx) { 
-      var str = x.phrase[0].startIndex;
-      var last = x.phrase[x.phrase.length - 1];
-      var end = last.startIndex + last.text.length;
-      // log.debug('Client.transformNictaNER:', 'x =', x, 'str =', str, 'end =', end, 'last =', last);
-      return {
-        representative : { start : str, end : end, text : txt.substring(str, end) },
-        ner : x.phraseType.entityClass,
-        coRefs : []
-      };
-    });
-  });
-  return { namedEntities: ners };
 };
 
 Client.prototype.ajaxPostJSON = function(url, params, success, error) {
@@ -250,9 +436,10 @@ Client.prototype.coreNlpNERWithCoref = function(txt, success, error) {
 }
 
 /**
- * Controller: initialization
+ * Controller (and View): initialization
  */
 function Controller() {
+  this.model = {};
   var self = this;
   
   // map multiple named entity types used by the different NERs to one label and class name (the first in the list) used in the UI
@@ -263,6 +450,26 @@ function Controller() {
     { parent : $('#dates'), classes : [ 'DATE', 'TIME' ], label : 'Date, time, duration' },
     { parent : $('#numbers'), classes : [ 'NUMBER', 'PERCENT', 'PERCENTAGE', 'MONEY' ], label : 'Number' }
   ];
+  
+  var genNeTypeItems = function() { // generate a <li> for each tableConfig item
+    return $.map(self.tableConfig, function(tc, idx) {
+      return $('<li>').append($('<a>').attr({ 'class':  'entity-type ' + tc.classes[0].toLowerCase(), tabindex: '-1' }).text(tc.label));
+    });
+  };
+  
+  var cr = $('#view-redactions-create-menu > ul');
+  cr.append(genNeTypeItems());
+  $('a', cr).on('click', function(e) {
+    log.debug('create menu item clicked');
+  });
+  
+  var ed = $('#view-redactions-edit-menu > ul');
+  ed.append(genNeTypeItems())
+    .append($('<li>').addClass('divider'))
+    .append($('<li>').append($('<a>').attr({ 'class': 'delete', tabindex: '-1' }).text('Delete')));
+  $('a', ed).on('click', function(e) {
+    log.debug('edit menu item clicked');
+  });
 
   this.client = new Client(
     window.location.protocol === 'file:'
@@ -270,10 +477,8 @@ function Controller() {
     : 'rest/v1.0'                                   // use relative path when page served from webapp
   );
 
-  $('#file-upload-form').attr('action', this.client.baseUrl + '/echo');
-  
   // Respond to file selection from user
-  $('#file-upload').on('change', function(ev) {
+  $('#file-upload-form input[type=file]').on('change', function(ev) {
     // log.debug('init: ev.target.files =', ev.target.files);
     self.openFile(ev.target.files[0]);
   });
@@ -283,6 +488,19 @@ function Controller() {
   var img = $('#start-drag-drop img');
   img.mouseover(function() { img.attr('src', 'images/start_hover.png') });
   img.mouseout(function() { img.attr('src', 'images/start.png') });
+  
+  $("#view-redactions-doc").on('mouseup', function(e) {
+    self.editNamedEntity(e, window.getSelection().getRangeAt(0));
+    return false;
+  });
+};
+
+Controller.prototype.addSpinner = function(parent) {
+  $(parent).append($("<img>").attr({src: 'images/ajax_loader_gray_64.gif', alt: 'spinner'}));
+};
+
+Controller.prototype.clearSpinner = function(parent) {
+  $(parent).empty();
 };
 
 Controller.prototype.showView = function(view) {
@@ -290,17 +508,22 @@ Controller.prototype.showView = function(view) {
   $('div.layout-view').hide();
 
   // Display the selected view
-  $('#' + view).show();  
+  $('#' + view).show();
+  
+  if (view === 'view-export') this.redactPdf();
 };
 
 Controller.prototype.showOpenFileDialog = function() {
-  $('#file-upload').trigger('click');
+  $('#file-upload-form input[type=file]').trigger('click');
 };
 
 Controller.prototype.openFile = function(pdfFile) {
   var self = this;
   
-  $('#file-upload-form').submit(); // load orig PDF into iframe
+  var spin = '#view-original .spinner';
+  this.addSpinner(spin);
+  $('#view-original iframe').attr( { onload: "controller.clearSpinner('" + spin + "')" } );
+  $('#file-upload-form').attr( { action: this.client.baseUrl + '/echo', target: 'orig-pdf' } ).submit(); // load orig PDF into orig-pdf iframe
 
   // Select the 'Original' view tab and display the tabs
   $('#btn-view-original').button('toggle');
@@ -330,8 +553,10 @@ Controller.prototype.openFile = function(pdfFile) {
 };
 
 Controller.prototype.closeFile = function() {
-  // Clear selected file in the file upload input
-  $('#file-upload').val('');
+  this.model = {};
+  
+  // Clear hidden form fields
+  $('#file-upload-form input').val('');
 
   // Hide the view naigation tabs
   $('#view-nav').fadeOut();
@@ -349,65 +574,82 @@ Controller.prototype.closeFile = function() {
 Controller.prototype.processText = function(pages) {
   var self = this;
   
-  this.pageOffsets = new PageOffsets(pages);
-  var txt = pages.join(this.pageOffsets.pageSeparator);
+  this.model.pageOffsets = new PageOffsets(pages);
+  this.model.text = pages.join(this.model.pageOffsets.pageSeparator);
 
+  var spin = '#view-redactions .spinner';
+  this.addSpinner(spin);
+  
   function success(data) {
-    self.namedEntities = self.postProcess(data.namedEntities); // TODO: do we want to make this conditional on 'Settings'
-    
-    var elem = $('#view-redactions-doc');
-    elem.empty();
-    elem.append(self.markup(self.namedEntities, txt));
-
-//    var treeData = toTreeData(namedEntities);
-//    debug('genContent:', 'namedEntities', namedEntities, 'treeData =', treeData);
-//    updateTree = updateTree(treeData, {highlight: highlight, unhighlight: unhighlight, move: move}); // create/update tree, return function to update existing tree
-//    
-//    $.each(tableConfig, function(idx, p) {
-//      genNeTable(p.parent, p.classes, p.label, namedEntities);
-//    });
-//    
-//    var elem = $('#entities');
-//    $("input[type='text']", elem).attr('class', 'hidden'); // reason hidden until checkbox ticked
-//    $("input[type='checkbox']", elem).on('change', redact);
-//
-//    // mouse over highlights the entity in Processed Text
-//    $("span[neIdx]", elem)
-//      .on("mouseenter", function(ev) { highlight(getNeIdx(getTarget(ev))); })
-//      .on("mouseleave", function(ev) { unhighlight(getNeIdx(getTarget(ev))); });
+    self.clearSpinner(spin);
+    self.model.namedEntities = util.postProcess(data.namedEntities); // TODO: do we want to make this conditional on 'Settings'
+    self.populateProcessedText();
     self.populateEntities();
-//    self.addEntityToList($('#people-entities'), 2, 'Julie Brown', 'Reason');
-//    self.addEntityToList($('#people-entities'), 3, 'Peter Smith', 'Reason');
-//    self.addEntityToList($('#organisation-entities'), 1, 'Department of Mollis', 'Reason');
-//    self.addEntityToList($('#location-entities'), 5, 'Canberra', 'Reason');
-//    self.addEntityToList($('#location-entities'), 2, 'Sydney', 'Reason');
-//    self.addEntityToList($('#date-entities'), 1, '1 Jan 2014', 'Reason');
-//    self.addEntityToList($('number-entities'), 2, '42', 'Reason');  
   };
   
-  function error() {};
+  function error() {
+    self.clearSpinner(spin);
+  };
   
   // TODO: use 'settings' switch ($('#inputText input[name=nerImpl]:checked').attr('id')) {
   switch ('nerImplNicta') {
   case 'nerImplCoreNlpWithCoref':
-    this.client.coreNlpNERWithCoref(txt, success, error);
+    this.client.coreNlpNERWithCoref(this.model.text, success, error);
     break;
   case 'nerImplCoreNlp':
-    this.client.coreNlpNER(txt, success, error);
+    this.client.coreNlpNER(this.model.text, success, error);
     break;
   case 'nerImplOpenNlp':
-    this.client.openNlpNER(txt, success, error);
+    this.client.openNlpNER(this.model.text, success, error);
     break;
   case 'nerImplNicta':
   default:
-    this.client.nictaNER(txt, success, error);
+    this.client.nictaNER(this.model.text, success, error);
     break;
   };
 };
 
-//markup named entities in text 
-Controller.prototype.markup = function(namedEntities, text) {
-  var d = $.map(namedEntities, function(ne, neIdx) {
+Controller.prototype.populateEntities = function() {
+  var self = this;
+  
+  var elem = $("#view-redactions-sidebar .generated-entities"); 
+  elem.empty();
+  elem.append($.map(this.tableConfig, function(tblCfg, tblCfgIdx) {
+    return $("<div>").addClass(tblCfg.classes[0].toLowerCase())
+      .append($("<div>").addClass("category").text(tblCfg.label).append($("<span>").addClass("badge pull-right")))
+      .append($("<table>").addClass("entity-list").append($.map(self.model.namedEntities, function(ne, neIdx) {
+        return tblCfg.classes.indexOf(ne.ner) === -1 ? undefined
+          : $('<tr>').append(
+              $("<td>").append($("<input>").attr({type: "checkbox", neIdx: neIdx}))
+            ).append(
+              $("<td>").addClass("entity-info")
+                .append($("<span>").addClass("badge pull-right").text(ne.coRefs.length + 1))
+                .append($("<div>").addClass("entity-name").text(ne.representative.text)) // TODO: do I need document.createTextNode(t) to properly escape the text?
+                .append($("<input>").attr({'class': "redaction-reason", type: "text", neIdx: neIdx}).val("reason"))
+            );
+        })));
+  }));
+};
+
+Controller.prototype.populateProcessedText = function() {
+  var elem = $('#view-redactions-doc');
+  elem.empty();
+  elem.append(this.markup());
+};
+
+/**
+ * markup named entities in text
+ */ 
+Controller.prototype.markup = function() {
+  // usage: ner2class[ne.ner] -> class name (the first in the list)
+  ner2class = {};
+  $.each(this.tableConfig, function(i, tc) {
+    $.each(tc.classes, function(j, c) {
+      ner2class[c] = tc.classes[0];
+    });
+  });
+  
+  var d = $.map(this.model.namedEntities, function(ne, neIdx) {
     // array of coRefs + representative mention
     var r = $.map(ne.coRefs, function(cr, coRefIdx) {
       return { neIdx: neIdx, coRefIdx: coRefIdx, ner: ne.ner, start: cr.start, end: cr.end };
@@ -421,163 +663,110 @@ Controller.prototype.markup = function(namedEntities, text) {
     if (x !== 0) return x;
     else return b.end - a.end;
   });
-  // log.debug('markup: sorted mentions d =', d);
+  // log.debug('util.markup: sorted mentions d =', d);
 
-  var m = new Markup(text);
+  var m = new Markup(this.model.text);
   $.each(d, function(idx, x) {
-    var t = '<span class="' + x.ner.toLowerCase() + '" neIdx="' + x.neIdx + '"' + (typeof x.coRefIdx === 'undefined' ? '' : ' coRefIdx="' + x.coRefIdx + '"') + '>';
-    // log.debug('markup: t =', t, 'text', text.slice(x.start, x.end), 'x', x);
+    var t = '<span class="' + ner2class[x.ner].toLowerCase() + '" neIdx="' + x.neIdx + '"' + (typeof x.coRefIdx === 'undefined' ? '' : ' coRefIdx="' + x.coRefIdx + '"') + '>';
+    // log.debug('util.markup: t =', t, 'text', text.slice(x.start, x.end), 'x', x);
     m.insert(x.start, t);
     m.insert(x.end, '</span>');
   });
-  // log.debug('markup: output', m.output);
+  // log.debug('util.markup: output', m.output);
   return m.output;
-};
+},
 
 /**
- * @param acro the purported acronym
- * @param term the term
- * @returns {Boolean} true if acro is the acronym of term
+ * Edit namedEntities according to user input.
+ * @param range of text selected
  */
-Controller.prototype.isAcronym = function(acro, term) {
-  var arr = term.split(/ +/);
-  var ac = '';
-  for (i  = 0; i < arr.length; ++i) {
-    ac += arr[i].charAt(0).toUpperCase();
+Controller.prototype.editNamedEntity = function(mouseEvent, range) {
+  var self = this;
+//  var createType = $('#neCreate input:checked').attr('value');
+//  var editType = $('#neEdit input:checked').attr('value');
+  log.debug('Controller.editNamedEntity: range =', range);
+  if (range.endOffset > range.startOffset || range.startContainer !== range.endContainer) {
+    var elem = $('#view-redactions-doc');
+    var str = util.getTextOffset(range.startOffset, range.startContainer, elem);
+    var strNeRef = util.findNeRef(this.model.namedEntities, str);
+    var end = util.getTextOffset(range.endOffset, range.endContainer, elem);
+    var endNeRef = util.findNeRef(this.model.namedEntities, end);
+    var neRef = strNeRef.combine(endNeRef);
+    log.debug('Controller.editNamedEntity:', 'str', str, 'strNeRef', strNeRef, 'end', end, 'endNeRef', endNeRef, 'neRef', neRef);
+    if (neRef.neIdx === -1) {
+      log.debug('Controller.editNamedEntity: create new entity, contextmenu = ', $('#view-redactions-doc').data('context'));
+      // When user double clicks (to select a word) we get a stream of events: mousedown, mouseup, click, mousedown, mouseup, click, dblclick.
+      // This code is triggered on mouseup.
+      // If showCreateEntityMenu() is executed here, subsequent event processing by jQuery hides the menu again.
+      // So we execute it asynchronously, letting jQuery do it's thing with events first.  
+      setTimeout(function() { self.showEntityMenu(mouseEvent, '#view-redactions-create-menu'); }, 5);
+
+//      namedEntities.push({ 
+//        ner: createType, 
+//        representative: { start: str, end: end, text: txt.slice(str, end) },
+//        coRefs: []
+//      });
+    } else {
+      log.debug('Controller.editNamedEntity: edit entity, contextmenu = ', $('#view-redactions-doc').data('context'));
+      setTimeout(function() { self.showEntityMenu(mouseEvent, '#view-redactions-edit-menu'); }, 5);
+//      var ne = namedEntities[neRef.neIdx];
+//      if (editType === 'deleted') {
+//        if (neRef.corefIdx === -1) namedEntities.splice(neRef.neIdx, 1);
+//        else ne.coRefs.splice(neRef.corefIdx, 1);
+//      } else {
+//        if (editType === 'changed') ne.ner = createType;
+//        var m = neRef.corefIdx === -1 ? ne.representative : ne.coRefs[neRef.corefIdx];
+//        m.start = str;
+//        m.end = end;
+//        m.text = txt.slice(str, end);
+//      };
+    };
+//    namedEntities = conditionalPostProcess(namedEntities);
+//    log.debug('Controller.editNamedEntity:', 'namedEntities', namedEntities);
+//    var elem = clearResults();
+//    genContent(elem, txt, namedEntities);
   };
-  log.debug('isAcronym: ', 'acro', acro, 'term', term, 'ac', ac);
-  return ac === acro;
 };
 
-/**
- * Heuristic post processing of NER result.
- * Rules:<ol>
- * <li>delete any items longer than 80 chars
- * <li>treat subsequent item of same type and same text as coref
- * <li>if type is PERSON the 'same text' criteria is relaxed so that if the subsequent item contains only words contained in the first mention it is considered a match,
- *     so that 'Abbott' or 'Tony' will be taken to be a reference to a preceding 'Tony Abbott'.
- * <li>exclude common titles Mr|Mrs|Miss|Ms|Dr from above matching for PERSON.
- * <li>same as rule 3 but for ORGANIZATION.
- * <li>for ORGANIZATION also accept an acronym.
- * </ol>
- * In/output object of type Result:<pre>
- *   case class Result(namedEntities: List[NamedEntity])
- *   case class NamedEntity(representative: Mention, ner: String, coRefs: List[Mention])
- *   case class Mention(start: Int, end: Int, text: String)
- * </pre>  
- * @param data
- * @return modified data
- * 
- * Bug: with Tim de Sousa PDF text; CoreNLP + coRef
- * First result ne has: representative text = Tim de Sousa, start = 64, end = 76 and coref[1] is the same!
- * Oh, it's not my bug, that is in the data produced by CoreNLP. Looks like we have to filter that!
- * 
- * Mouse over scrolling on the tree doesn't work on the representative mention for Tim de Sousa, seems to work on all other nodes though.
- */
-Controller.prototype.postProcess = function(namedEntities) {
-  log.debug('Controller.postProcess:', 'namedEntities =', namedEntities);
-  var self = this;
-  
-  var neMap = {
-    map: {}, // key -> { ne: the ne, words: Set of words in ne.representative.text } 
-    key: function(ne) { return ne.ner + '~' + ne.representative.text; },
-    predicate: function(m) { return m.text.length <= 80; }, //rule 1
-    comparitor: function(a,b) {                                          // sort
-      var i = a.representative.start - b.representative.start;           // start ascending
-      return i != 0 ? i : b.representative.end - a.representative.end;   // then end descending (to get longest one first)
-    },
-    NOT_FOUND: '',
-    EMPTY_SET: new Set(),
-    lookupKey: function(k, ne) {
-      if (k in this.map) return k; // rule 2
-      if (ne.ner === 'PERSON') {
-        for (p in this.map) {
-          var v = this.map[p];
-          //                                   rule 3                               rule 4
-          if (v.ne.ner === 'PERSON' && v.words.containsWords(ne.representative.text.replace(/\b(?:Mr|Mrs|Miss|Ms|Dr)\.? /, ''))) return p;
-        };
-      };
-      if (ne.ner === 'ORGANIZATION') {
-        for (p in this.map) {
-          var v = this.map[p];
-          //                                          rule 5                                   rule 6
-          if (v.ne.ner === 'ORGANIZATION' && (v.words.containsWords(ne.representative.text) || self.isAcronym(ne.representative.text, v.ne.representative.text))) return p;
-        };
-      };
-      return this.NOT_FOUND;
-    },
-    add: function(ne) {
-      var k = this.key(ne);
-      var p = this.lookupKey(k, ne);
-      if (p === this.NOT_FOUND) {
-        // save first mention
-        var words = this.EMPTY_SET;
-        if (ne.ner === 'PERSON' || ne.ner === 'ORGANIZATION') {
-          words = new Set();
-          words.addWords(ne.representative.text); // rules 3 & 5
-        };
-        this.map[k] = { ne: ne, words: words };
-      } else {
-        // append this ne (including its corefs) as corefs to previous mention
-        var prev = this.map[p].ne;
-        prev.coRefs = prev.coRefs.concat(ne.representative, ne.coRefs).filter(this.predicate);
-      };
-    },
-    addAll: function(nes) {
-      nes.sort(this.comparitor);
-      for (var i = 0; i < nes.length; i++) {
-        var ne = nes[i];
-        if (this.predicate(ne.representative)) {
-          neMap.add(ne);
-        } else {
-          // skip representative mention, but add corefs
-          var corefs = ne.coRefs.filter(this.predicate);
-          if (corefs.length > 0) {
-            corefs.sort(this.comparitor);
-            ne.representative = corefs[0];
-            ne.coRefs = corefs.slice(1);
-            neMap.add(ne);
-          };
-        }
-      };
-    },
-    result: function() {
-      return $.map(this.map, function(v, k) {
-        return v.ne;
-      });
-    }
-  };
-  
-  neMap.addAll(namedEntities);
-  var r = neMap.result();
-  log.debug('Controller.postProcess:', 'return =', r);
-  return r;
-};
-
-Controller.prototype.populateEntities = function() {
-  var self = this;
-  
-  var elem = $("#view-redactions-sidebar .generated-entities"); 
-  elem.empty();
-  $.each(this.tableConfig, function(idx, tblCfg) {
-    elem.append(
-      $("<div>").addClass(tblCfg.classes[0])
-        .append($("<div>").addClass("category").text(tblCfg.label).append($("<span>").addClass("badge pull-right")))
-        .append($("<table>").addClass("entity-list").append($.map(self.namedEntities, function(ne, idx) {
-          return tblCfg.classes.indexOf(ne.ner) === -1 ? undefined
-              : $('<tr>').append(
-                  $("<td>").append($("<input>").attr({type: "checkbox", neIdx: idx}))
-                ).append(
-                  $("<td>").addClass("entity-info")
-                    .append($("<span>").addClass("badge pull-right").text(ne.coRefs.length + 1))
-                    .append($("<div>").addClass("entity-name").text(ne.representative.text)) // TODO: do I need document.createTextNode(t) to properly escape the text?
-                    .append($("<div>").addClass("redaction-reason").text("reason"))
-                );
-          
-        })))
-    );
+Controller.prototype.showEntityMenu = function(mouseEvent, menu) {
+  var doc = $('#view-redactions-doc'); 
+  var cm = doc.data('context');
+  if (cm) cm.destroy(); // remove current menu
+  doc.contextmenu({
+    target: menu // add new menu
   });
+  cm = doc.data('context');
+  cm.show(mouseEvent);
 };
 
+Controller.prototype.redactPdf = function() {
+  var self = this;
+  var elem = $("#view-redactions-sidebar");
+  
+  var redact = $.map($("input[type='checkbox']:checked", elem), function(cb, idx) {
+    var neIdx = $(cb).attr('neIdx');
+    var ne = self.model.namedEntities[neIdx]; // lookup namedEntity using each checkbox neIdx attr
+    var reason = $('input[neIdx=' + neIdx + '].redaction-reason', elem).val();
+    log.debug('Controller.redactPdf: ne =', ne, 'reason =', reason);
+    // flatten the representative ne and its coRefs
+    return $.map([ ne.representative ].concat(ne.coRefs), function(a, idx) {
+      var redactItem = self.model.pageOffsets.getPageOffset(a.start, a.end); // convert offsets into text from all pages to page and offset within page
+      redactItem.reason = reason;
+      return redactItem;
+    });
+  });
+  log.debug('redactPdf: redact =', redact);
+  
+  var spin = '#view-export .spinner';
+  this.addSpinner(spin);
+  $('#view-export iframe').attr( { onload: "controller.clearSpinner('" + spin + "')" } );
+  var f = $('#file-upload-form');
+  $('input[name=redact]', f).val(JSON.stringify( { redact: redact } ));
+  f.attr( { action: this.client.baseUrl + '/redact', target: 'export-pdf' } ).submit(); // load redacted PDF into export-pdf iframe
+};
 
+var controller;
+$(function(){
+  controller = new Controller();
+});
 

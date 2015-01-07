@@ -5,11 +5,10 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Text redaction</title>
-    <link rel="icon" type="image/ico" href="http://www.nicta.com.au/__data/assets/file/0014/28031/NICTALogo.ico" />
-    <link rel="stylesheet" type="text/css" href="./css/styles.css" >
-
-    <!-- Bootstrap -->
-    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link rel="icon" type="image/ico" href="http://www.nicta.com.au/__data/assets/file/0014/28031/NICTALogo.ico">
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+<!--     <link rel="stylesheet" type="text/css" href="css/context.bootstrap.css"> See: http://lab.jakiestfu.com/contextjs/ -->
+    <link rel="stylesheet" type="text/css" href="css/styles.css">
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -17,8 +16,6 @@
       <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
       <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
-
-    <script src="./js/redaction-ui.js"></script>
   </head>
   <body>
     <!-- Header -->
@@ -27,15 +24,13 @@
         <tr>
           <td>
             <div class="dropdown">
-              <button class="btn btn-link dropdown-toggle" type="button" data-toggle="dropdown">
-                File <span class="caret"></span>
-              </button>
+              <button class="btn btn-link dropdown-toggle" type="button" data-toggle="dropdown">File <span class="caret"></span></button>
               <ul class="dropdown-menu" role="menu">
-                <li id="cmd-open-doc" role="presentation"><a role="menuitem" tabindex="-1" href="#" onclick="controller.showOpenFileDialog()">Open</a></li>
-                <li id="cmd-close-doc" role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#" onclick="controller.closeFile()">Close</a></li>
-                <li id="cmd-export" role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#">Export</a></li>
+                <li role="presentation"><a role="menuitem" tabindex="-1" href="#" onclick="controller.showOpenFileDialog()">Open</a></li>
+                <li role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#" onclick="controller.closeFile()">Close</a></li>
+                <li role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#">Export</a></li>
                 <li role="presentation" class="divider"></li>
-                <li id="cmd-settings" role="presentation"><a role="menuitem" tabindex="-1" href="#" data-toggle="modal" data-target="#settings-dialog">Settings</a></li>
+                <li role="presentation"><a role="menuitem" tabindex="-1" href="#" data-toggle="modal" data-target="#settings-dialog">Settings</a></li>
               </ul>
             </div>
           </td>
@@ -75,28 +70,38 @@
       </div>
     </div>
     
-    <form id="file-upload-form" action="echo" method="post" enctype="multipart/form-data" target="orig-pdf">
-      <input type="file" id="file-upload" name="pdfFile" style="display: none;" />
+    <form id="file-upload-form" action="setDynamically" method="post" enctype="multipart/form-data" target="setDynamically">
+      <input type="file" name="pdfFile" />
+      <input type="text" name="redact" />
     </form>
 
     <!-- Original view -->
     <div id="view-original" class="layout-view" style="display: none;">
-      <iframe id="orig-pdf" name="orig-pdf"></iframe>
+      <div class="spinner"></div>
+      <iframe name="orig-pdf"></iframe>
     </div>
 
     <!-- Redactions view -->
     <div id="view-redactions" class="layout-view" style="display: none;">
+      <div class="spinner"></div>
       <div id="view-redactions-sidebar" class="layout-col sidebar scroll-y">
         <form role="form">
           <input type="search" class="form-control" id="txt-search" placeholder="Search">
         </form>
         <div class="generated-entities"></div>
       </div>
-      <div id="view-redactions-doc" class="layout-col main scroll-y"></div>
+      <div id="view-redactions-doc" class="layout-col main scroll-y" data-toggle="context"></div>
+      <div id="view-redactions-create-menu">
+        <ul class="dropdown-menu" role="menu"></ul>
+      </div>
+      <div id="view-redactions-edit-menu">
+        <ul class="dropdown-menu" role="menu"></ul>
+      </div>
     </div>
 
     <!-- Export view -->
     <div id="view-export" class="layout-view" style="display: none;">
+        <div class="spinner"></div>
         <div id="view-export-header" class="layout-row">
           <div style="margin-top: 8px;" class="pull-left">
             <span class="glyphicon glyphicon-file" aria-hidden="true"></span>
@@ -108,7 +113,7 @@
             </button>
           </div>
         </div>
-        <iframe id="export-pdf" name="export-pdf"></iframe>
+        <iframe name="export-pdf"></iframe>
     </div>
 
     <div id="settings-dialog" class="modal fade">
@@ -133,16 +138,10 @@
       </div>
     </div>
     
-
-    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-    <script src="./js/jquery.min.js"></script>
-    <!-- Include all compiled plugins (below), or include individual files as needed -->
-    <script src="js/bootstrap.min.js"></script>
-    <script>
-    var controller;
-    $(function() {
-      controller = new Controller();
-    })
-    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <!-- <script src="js/context.js"></script> See: http://lab.jakiestfu.com/contextjs/  --> 
+    <script src="js/bootstrap-contextmenu.js"></script> <!-- See: https://github.com/sydcanem/bootstrap-contextmenu -->
+    <script src="js/redaction-ui.js"></script>
   </body>
 </html>
