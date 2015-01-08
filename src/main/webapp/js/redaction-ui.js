@@ -795,9 +795,10 @@ Controller.prototype.redactPdf = function() {
   var elem = $("#view-redactions-sidebar");
   
   var redact = $.map($("input[type='checkbox']:checked", elem), function(cb, idx) {
-    var neIdx = $(cb).attr('neIdx');
+    var info = $(cb).closest('.entity-info');
+    var neIdx = info.attr('neIdx');
     var ne = self.model.namedEntities[neIdx]; // lookup namedEntity using each checkbox neIdx attr
-    var reason = $('input[neIdx=' + neIdx + '].redaction-reason', elem).val();
+    var reason = $('input[type=text]', info).val();
     log.debug('Controller.redactPdf: ne =', ne, 'reason =', reason);
     // flatten the representative ne and its coRefs
     return $.map([ ne.representative ].concat(ne.coRefs), function(a, idx) {
