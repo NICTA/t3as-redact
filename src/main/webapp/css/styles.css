@@ -206,7 +206,7 @@ div#start-drag-drop img
   display: none;  
 }
 
-#view-redactions .dropdown-menu .entity-type {
+#view-redactions .dropdown-menu .entity-type, #view-redactions-doc span {
   color: white;
 }
 
