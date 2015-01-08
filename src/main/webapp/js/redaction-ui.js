@@ -451,24 +451,26 @@ function Controller() {
     { parent : $('#numbers'), classes : [ 'NUMBER', 'PERCENT', 'PERCENTAGE', 'MONEY' ], label : 'Number' }
   ];
   
-  var genNeTypeItems = function() { // generate a <li> for each tableConfig item
+  var genNeTypeItems = function() { // generate a <li> for each tableConfig item, ner is the named entity type
     return $.map(self.tableConfig, function(tc, idx) {
-      return $('<li>').append($('<a>').attr({ 'class':  'entity-type ' + tc.classes[0].toLowerCase(), tabindex: '-1' }).text(tc.label));
+      return $('<li>').append($('<a>').attr({ 'class':  'entity-type ' + tc.classes[0].toLowerCase(), ner: tc.classes[0], tabindex: '-1' }).text(tc.label));
     });
   };
   
-  var cr = $('#view-redactions-create-menu > ul');
+  var cr = $('#view-redactions-create-menu ul');
   cr.append(genNeTypeItems());
   $('a', cr).on('click', function(e) {
-    log.debug('create menu item clicked');
+    var ner = $(e.target).attr('ner');
+    self.createEntity(ner);
   });
   
-  var ed = $('#view-redactions-edit-menu > ul');
+  var ed = $('#view-redactions-edit-menu ul');
   ed.append(genNeTypeItems())
     .append($('<li>').addClass('divider'))
-    .append($('<li>').append($('<a>').attr({ 'class': 'delete', tabindex: '-1' }).text('Delete')));
+    .append($('<li>').append($('<a>').attr({ 'class': 'delete', action: 'delete', tabindex: '-1' }).text('Delete')));
   $('a', ed).on('click', function(e) {
-    log.debug('edit menu item clicked');
+    var ner = $(e.target).attr('ner');
+    ner === 'delete' ? self.deleteEntity() : self.editEntity(ner);
   });
 
   this.client = new Client(
@@ -582,9 +584,7 @@ Controller.prototype.processText = function(pages) {
   
   function success(data) {
     self.clearSpinner(spin);
-    self.model.namedEntities = util.postProcess(data.namedEntities); // TODO: do we want to make this conditional on 'Settings'
-    self.populateProcessedText();
-    self.populateEntities();
+    self.updateUI(data.namedEntities);
   };
   
   function error() {
@@ -592,7 +592,7 @@ Controller.prototype.processText = function(pages) {
   };
   
   // TODO: use 'settings' switch ($('#inputText input[name=nerImpl]:checked').attr('id')) {
-  switch ('nerImplNicta') {
+  switch ('nerImplOpenNlp') {
   case 'nerImplCoreNlpWithCoref':
     this.client.coreNlpNERWithCoref(this.model.text, success, error);
     break;
@@ -609,26 +609,49 @@ Controller.prototype.processText = function(pages) {
   };
 };
 
+Controller.prototype.updateUI = function(namedEntities) {
+  this.model.namedEntities = util.postProcess(namedEntities); // TODO: do we want to make this conditional on 'Settings'
+  this.populateProcessedText();
+  this.populateEntities();  
+};
+
 Controller.prototype.populateEntities = function() {
   var self = this;
   
-  var elem = $("#view-redactions-sidebar .generated-entities"); 
+  var elem = $('#view-redactions-sidebar .generated-entities'); 
   elem.empty();
   elem.append($.map(this.tableConfig, function(tblCfg, tblCfgIdx) {
-    return $("<div>").addClass(tblCfg.classes[0].toLowerCase())
-      .append($("<div>").addClass("category").text(tblCfg.label).append($("<span>").addClass("badge pull-right")))
-      .append($("<table>").addClass("entity-list").append($.map(self.model.namedEntities, function(ne, neIdx) {
-        return tblCfg.classes.indexOf(ne.ner) === -1 ? undefined
-          : $('<tr>').append(
-              $("<td>").append($("<input>").attr({type: "checkbox", neIdx: neIdx}))
-            ).append(
-              $("<td>").addClass("entity-info")
-                .append($("<span>").addClass("badge pull-right").text(ne.coRefs.length + 1))
-                .append($("<div>").addClass("entity-name").text(ne.representative.text)) // TODO: do I need document.createTextNode(t) to properly escape the text?
-                .append($("<input>").attr({'class': "redaction-reason", type: "text", neIdx: neIdx}).val("reason"))
-            );
-        })));
+    return $('<div>').addClass(tblCfg.classes[0].toLowerCase())
+      .append($('<div>').addClass('category').text(tblCfg.label).append($('<span>').addClass('badge pull-right')))
+      .append($.map(self.model.namedEntities, function(ne, neIdx) {
+        return tblCfg.classes.indexOf(ne.ner) === -1 ? undefined : $('<div>').attr( { 'class': 'entity-info', neIdx: neIdx } )
+          .append($('<div>').addClass('redaction-checkbox').append($('<input>').attr( { type: 'checkbox', id: neIdx } )))
+          .append($('<div>').addClass('entity-name').append($('<label>').attr('for', neIdx).text(ne.representative.text))) // TODO: do I need document.createTextNode(t) to properly escape the text?
+          .append($('<span>').addClass('badge pull-right').text(ne.coRefs.length + 1))
+          .append($('<div>').addClass('redaction-reason').append($('<input>').attr('type', 'text').val('reason')))
+          .append($('<ul>').addClass('entity-corefs hidden').append($.map(ne.coRefs, function(coRef, coRefIdx) {
+            return $('<li>').attr( { neIdx: neIdx, coRefIdx: coRefIdx } ).text(coRef.text);
+          })));
+      }));
   }));
+  
+  $('div.entity-info .badge', elem).click(function() {
+    var badge = $(this);
+    var count = badge.text();
+    var neIdx = badge.closest('.entity-info').attr('neIdx');
+    var ul = $('div[neIdx=' + neIdx + '].entity-info ul', elem);
+    var hidden = ul.hasClass('hidden');
+    $('div.entity-info ul', elem).addClass('hidden');
+    if (hidden && count > 1) ul.removeClass('hidden');
+  });
+  
+  $('div.entity-info .redaction-checkbox input', elem).click(function() {
+    var cb = $(this);
+    var neIdx = cb.closest('.entity-info').attr('neIdx');
+    var spans = $('#view-redactions-doc span[neidx=' + neIdx + ']');
+    if (cb.is(":checked")) spans.addClass('redacted');
+    else spans.removeClass('redacted');
+  });
 };
 
 Controller.prototype.populateProcessedText = function() {
@@ -691,35 +714,30 @@ Controller.prototype.editNamedEntity = function(mouseEvent, range) {
     var strNeRef = util.findNeRef(this.model.namedEntities, str);
     var end = util.getTextOffset(range.endOffset, range.endContainer, elem);
     var endNeRef = util.findNeRef(this.model.namedEntities, end);
-    var neRef = strNeRef.combine(endNeRef);
-    log.debug('Controller.editNamedEntity:', 'str', str, 'strNeRef', strNeRef, 'end', end, 'endNeRef', endNeRef, 'neRef', neRef);
-    if (neRef.neIdx === -1) {
-      log.debug('Controller.editNamedEntity: create new entity, contextmenu = ', $('#view-redactions-doc').data('context'));
+
+    // save for use by create/delete/editEntity
+    this.model.neRef = strNeRef.combine(endNeRef);
+    this.model.newEntity = {
+        representative : { start: str, end: end, text: this.model.text.substring(str, end) },
+        // ner : not yet known,
+        coRefs : []
+      };
+
+    log.debug('Controller.editNamedEntity:', 'str', str, 'strNeRef', strNeRef, 'end', end, 'endNeRef', endNeRef, 'neRef', this.model.neRef, 'newEntity', this.model.newEntity);
+    if (this.model.neRef.neIdx === -1) {      
       // When user double clicks (to select a word) we get a stream of events: mousedown, mouseup, click, mousedown, mouseup, click, dblclick.
-      // This code is triggered on mouseup.
+      // This code is triggered on mouseup (and first `if` above means it's not the 1st mouseup when no text is selected).
       // If showCreateEntityMenu() is executed here, subsequent event processing by jQuery hides the menu again.
       // So we execute it asynchronously, letting jQuery do it's thing with events first.  
       setTimeout(function() { self.showEntityMenu(mouseEvent, '#view-redactions-create-menu'); }, 5);
-
-//      namedEntities.push({ 
-//        ner: createType, 
-//        representative: { start: str, end: end, text: txt.slice(str, end) },
-//        coRefs: []
-//      });
     } else {
-      log.debug('Controller.editNamedEntity: edit entity, contextmenu = ', $('#view-redactions-doc').data('context'));
+      // highlight current ner
+      var ner = this.model.namedEntities[this.model.neRef.neIdx].ner;
+      var elem = $('#view-redactions-edit-menu ul');
+      $('a', elem).removeClass('current');
+      $('a[ner=' + ner + ']', elem).addClass('current');
+      
       setTimeout(function() { self.showEntityMenu(mouseEvent, '#view-redactions-edit-menu'); }, 5);
-//      var ne = namedEntities[neRef.neIdx];
-//      if (editType === 'deleted') {
-//        if (neRef.corefIdx === -1) namedEntities.splice(neRef.neIdx, 1);
-//        else ne.coRefs.splice(neRef.corefIdx, 1);
-//      } else {
-//        if (editType === 'changed') ne.ner = createType;
-//        var m = neRef.corefIdx === -1 ? ne.representative : ne.coRefs[neRef.corefIdx];
-//        m.start = str;
-//        m.end = end;
-//        m.text = txt.slice(str, end);
-//      };
     };
 //    namedEntities = conditionalPostProcess(namedEntities);
 //    log.debug('Controller.editNamedEntity:', 'namedEntities', namedEntities);
@@ -737,6 +755,39 @@ Controller.prototype.showEntityMenu = function(mouseEvent, menu) {
   });
   cm = doc.data('context');
   cm.show(mouseEvent);
+};
+
+Controller.prototype.createEntity = function(ner) {
+  var nes = this.model.namedEntities;
+  var newNe = this.model.newEntity;
+  log.debug('Controller.createEntity: ner =', ner, 'newNe =', newNe);
+  newNe.ner = ner;
+  nes.push(newNe);
+  this.updateUI(nes);
+};
+
+Controller.prototype.deleteEntity = function() {
+  var r = this.model.neRef;
+  var nes = this.model.namedEntities;
+  log.debug('Controller.deleteEntity: r =', r);  
+  if (r.corefIdx === -1) nes.splice(r.neIdx, 1);
+  else nes[r.neIdx].coRefs.splice(r.corefIdx, 1);
+  this.updateUI(nes);
+};
+
+Controller.prototype.editEntity = function(ner) {
+  var r = this.model.neRef;
+  var nes = this.model.namedEntities;
+  var ne = nes[r.neIdx];
+  var newNe = this.model.newEntity;
+  log.debug('Controller.editEntity: ner =', ner, 'r =', r, 'newNe =', newNe, r.corefIdx !== -1 && ne.ner !== ner ? "warning: not changing type of coref!" : "");
+  if (r.corefIdx === -1) {
+    ne.ner = ner;
+    ne.representative = newNe.representative;
+  } else {
+    ne.coRefs[r.corefIdx] = newNe.representative;
+  };
+  this.updateUI(nes);
 };
 
 Controller.prototype.redactPdf = function() {
