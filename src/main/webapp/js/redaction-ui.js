@@ -625,32 +625,100 @@ Controller.prototype.populateEntities = function() {
       .append($('<div>').addClass('category').text(tblCfg.label).append($('<span>').addClass('badge pull-right')))
       .append($.map(self.model.namedEntities, function(ne, neIdx) {
         return tblCfg.classes.indexOf(ne.ner) === -1 ? undefined : $('<div>').attr( { 'class': 'entity-info', neIdx: neIdx } )
-          .append($('<div>').addClass('redaction-checkbox').append($('<input>').attr( { type: 'checkbox', id: neIdx } )))
-          .append($('<div>').addClass('entity-name').append($('<label>').attr('for', neIdx).text(ne.representative.text))) // TODO: do I need document.createTextNode(t) to properly escape the text?
-          .append($('<span>').addClass('badge pull-right').text(ne.coRefs.length + 1))
+          .append($('<div>').addClass('redaction-checkbox').append($('<input>').attr( { type: 'checkbox' } )))
+          .append($('<div>').addClass('entity-name').text(ne.representative.text))
+          // .append($('<span>').addClass('badge pull-right').text(ne.coRefs.length + 1))
+          .append($('<div>').addClass('count').append($('<span>').addClass('badge').text(ne.coRefs.length + 1)))
           .append($('<div>').addClass('redaction-reason').append($('<input>').attr('type', 'text').val('reason')))
-          .append($('<ul>').addClass('entity-corefs hidden').append($.map(ne.coRefs, function(coRef, coRefIdx) {
-            return $('<li>').attr( { neIdx: neIdx, coRefIdx: coRefIdx } ).text(coRef.text);
-          })));
+          .append($('<ul>').addClass('entity-corefs').append(
+            $('<li>').attr( { neIdx: neIdx } ).text(ne.representative.text),
+            $.map(ne.coRefs, function(coRef, coRefIdx) {
+              return $('<li>').attr( { neIdx: neIdx, coRefIdx: coRefIdx } ).text(coRef.text);
+            })
+          ));
       }));
   }));
   
-  $('div.entity-info .badge', elem).click(function() {
-    var badge = $(this);
-    var count = badge.text();
-    var neIdx = badge.closest('.entity-info').attr('neIdx');
-    var ul = $('div[neIdx=' + neIdx + '].entity-info ul', elem);
-    var hidden = ul.hasClass('hidden');
-    $('div.entity-info ul', elem).addClass('hidden');
-    if (hidden && count > 1) ul.removeClass('hidden');
+  function count(info) { return self.model.namedEntities[info.attr('neIdx')].coRefs.length + 1; };
+  
+  function deselect(info) {
+    var doc = $('#view-redactions-doc');
+    info.add($('li', info)).add($('span', doc)).removeClass('selected half-selected');
+    doc.removeClass('highlight');
+    
+    // reset badge content to just count
+    $.each(info, function(idx, inf) {
+      var inf2 = $(inf);
+      $('.count', inf2).empty().append($('<span>').addClass('badge').text(count(inf2)));
+    });
+  };
+  
+  function selectRepresentativeRef(doc, neIdx) {
+    $('[neIdx=' + neIdx + ']:not([coRefIdx])', doc).addClass('selected');
+    $('[neIdx=' + neIdx + '][coRefIdx]', doc).addClass('half-selected');    
+  };
+  
+  function selectCoRef(doc, neIdx, coRefIdx) {
+    $('[neIdx=' + neIdx + '][coRefIdx=' + coRefIdx + ']', doc).addClass('selected');
+    $('[neIdx=' + neIdx + ']:not([coRefIdx=' + coRefIdx + '])', doc).addClass('half-selected');
+  };
+  
+  function select(info, selectedIdx) {
+    var sel = $('li:nth-child(' + selectedIdx + ')', info);
+    info.add(sel).addClass('selected');
+
+    var doc = $('#view-redactions-doc');
+    doc.addClass('highlight');
+    
+    // mark unique exact match 'selected', match other ref's 'half-selected'
+    var neIdx = info.attr('neIdx');
+    if (selectedIdx === 1) {
+      selectRepresentativeRef(doc, neIdx);
+    } else {
+      selectCoRef(doc, neIdx, sel.attr('coRefIdx'));
+    }
+    
+    // set badge content to count and nav buttons
+    $.each(info, function(idx, inf) {
+      var inf2 = $(inf);
+      $('.count', inf2).empty().append(
+        $('<a>').addClass('prev').text('<'),
+        $('<span>').addClass('badge').text(selectedIdx + ' of ' + count(inf2)),
+        $('<a>').addClass('next').text('>')
+      );
+    });
+  };
+  
+  $('.entity-info', elem).click(function() {
+    var info = $(this);
+    if (count(info) > 1) {
+      var wasSelected = info.hasClass('selected');
+      
+      // hide all currently selected entity-infos and reset their badge (expect 0..1)
+      deselect($('div.entity-info.selected', elem));
+      
+      // show the selected one only if it was hidden
+      if (!wasSelected) select(info, 1);
+    }
   });
   
-  $('div.entity-info .redaction-checkbox input', elem).click(function() {
+  $('.entity-info li', elem).click(function() {
+    var li = $(this);
+    if (!li.hasClass('selected')) {
+      var info = li.closest('.entity-info');
+      deselect(info);
+      select(info, li.index() + 1);
+    };
+    return false;
+  });
+  
+  $('.entity-info .redaction-checkbox input', elem).click(function() {
     var cb = $(this);
     var neIdx = cb.closest('.entity-info').attr('neIdx');
     var spans = $('#view-redactions-doc span[neidx=' + neIdx + ']');
     if (cb.is(":checked")) spans.addClass('redacted');
     else spans.removeClass('redacted');
+    // return false; this stops the checkbox getting ticked!
   });
 };
 
