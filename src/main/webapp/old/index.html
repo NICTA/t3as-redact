@@ -1,184 +1,93 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Text redaction</title>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Redaction</title>
+  <link rel="icon" type="image/ico" href="http://www.nicta.com.au/__data/assets/file/0014/28031/NICTALogo.ico" />
+  <link href="index.css" rel="stylesheet" type="text/css">
 
-    <link rel="stylesheet" type="text/css" href="./css/styles.css" >
+  <script src="http://code.jquery.com/jquery-2.1.1.min.js" charset="utf-8"></script>
+  <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+  <script src="dndTree.js" charset="utf-8"></script>
+  <script src="common.js" charset="utf-8"></script>
+  <script src="index.js" charset="utf-8"></script>
+</head>
 
-    <!-- Bootstrap -->
-    <link href="css/bootstrap.min.css" rel="stylesheet">
+<body>
+  <h1>Redaction</h1>
+  <h2>Load PDF</h2>
+  <div id="extractText">
+    <!-- extract uses pdfFile in an ajax call (does not submit form). Form submitted by redact button at end of page -->
+    <form id="redactForm" action="/redact" method="POST" enctype="multipart/form-data" target="pdf">
+      <input type="file" name="pdfFile" accept="application/pdf" />
+      <input type="hidden" name="redact" />
+      <button name="extract">Extract Text</button>
+    </form>
+  </div>
+  
+  <h2>Input Text</h2>
+  <div id="inputText">
+    <form>
+    <textarea name="text"></textarea>
+    <h3>NLP implementation</h3>
+    <input type="radio" name="nerImpl" id="nerImplCoreNLP"/><label for="nerImplCoreNLP">Stanford CoreNLP NER</label>
+    <input type="radio" name="nerImpl" id="nerImplCoreNLPCoref"/><label for="nerImplCoreNLPCoref">Stanford CoreNLP NER + Coref</label>
+    <br>
+    <input type="radio" name="nerImpl" id="nerImplOpenNLP"/><label for="nerImplOpenNLP">OpenNLP NER</label>
+    <br>
+    <input type="radio" name="nerImpl" id="nerImplNicta" checked="checked"/><label for="nerImplNicta">NICTA NER</label>
+    <br>
+    <input type="checkbox" name="nerPostProcess" id="nerPostProcess" checked="checked"/><label for="nerPostProcess">Heuristic post-processing</label>
+    <br>
+    <button name="process">Process</button>
+    </form>
+  </div>
+  
+  <h2>Processed Text</h2>
+  <div id="processedText"></div>
+  <div id="neCreateEdit">
+    <span class="label">Edit entities by selecting text above.</span>
+    <br/>
+    <span class="label">Created entity will be:</span>
+    <span id="neCreate"></span>
+    <br/>
+    <span class="label">Edited entity will be:</span>
+    <span id="neEdit"></span>
+  </div>
+  
+  <h2>Entities Tree</h2>
+  <div id="tree-container"></div>
+  
+  <h2>Entities List</h2>
+  <div id="entities">
+    <h3>People</h2>
+    <div id="people"></div>
 
-    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
-    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
-    <!--[if lt IE 9]>
-      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
-      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
-    <![endif]-->
+    <h3>Organizations</h2>
+    <div id="organizations"></div>
 
-    <script src="./js/redaction-ui.js"></script>
-  </head>
-  <body>
-    <header>
-        <div style="display: table; width: 100%;">
-          <div style="display: table-row;">
-            <div style="display: table-cell;width: 20%;">
-              <div class="dropdown">
-                <button class="btn btn-link dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-expanded="true">
-                  File <span class="caret"></span>
-                </button>
-                <ul class="dropdown-menu" role="menu">
-                  <li id="cmd-open-doc" role="presentation"><a role="menuitem" tabindex="-1" href="#" onclick="showOpenFileDialog()">Open</a></li>
-                  <li id="cmd-close-doc" role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#" onclick="closeFile()">Close</a></li>
-                  <li id="cmd-export" role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#">Export</a></li>
-                  <li role="presentation" class="divider"></li>
-                  <li id="cmd-settings" role="presentation"><a role="menuitem" tabindex="-1" href="#" data-toggle="modal" data-target="#settings-dialog">Settings</a></li>
-                </ul>
-              </div>
-
-              <input type="file" id="file-upload" name="" style="display: none;" />
-
-            </div>
-
-            <div style="display: table-cell; text-align: center;">
-              <div id="filename">Text redaction</div>
-              <div id="view-nav" class="btn-group tr-main-tabs" data-toggle="buttons" style="display: none;">
-                <label id="btn-view-original" class="btn btn-default">
-                  <input type="radio" name="views" autocomplete="off" checked onchange="showView('view-original')"> Original
-                </label>
-                <label id="btn-view-redactions" class="btn btn-default active">
-                  <input type="radio" name="views" autocomplete="off" onchange="showView('view-redactions')"> Redactions
-                </label>
-                <label id="btn-view-export" class="btn btn-default">
-                  <input type="radio" name="views" autocomplete="off" onchange="showView('view-export')"> Export
-                </label>
-              </div>
-            </div>
-
-            <div style="display: table-cell; text-align: right; width: 20%;">
-              <!-- No content displayed at top-right of header yet -->
-            </div>
-          </div>          
-        </div>
-
-    </header>
-
-    <div class="tr-table-container">
-
-        <div id="view-start" class="row tr-view">
-          <div class="col-md-12 no-float text-center">
-            <div class="alert alert-warning" role="alert" style="width: 400px;margin: 20px auto;text-align: left;"><b>Warning</b>: Your connection to this server is not secure.<br />This service is intended for demonstration purposes only.</div>
-            <div id="start-drag-drop">
-              <img src="./images/start.png" />
-              <p>Drag and drop a document to begin</p>
-            </div>
-
-            <div class="legal">
-              Copyright &copy; 2014 NICTA. <a href="./legals/RedactionTool%20-%20WebsiteTermsOfUse%20-%203OCT2014.pdf">Terms of Use</a>, <a href="./legals/RedactionService-SupplementalPrivacyPolicy%20-3OCT14_v2.pdf">Privacy Policy</a> and <a href="https://github.com/NICTA/t3as-redact/blob/master/THIRD_PARTY_LICENSES">Acknowledgements</a>.<br />
-              The source code for this service is freely available under the AGPL and consists of the <a href="https://github.com/NICTA/t3as-redact">web service and user interface</a> and <a href="https://github.com/NICTA/t3as-pdf">PDF redaction</a>.
-            </div>
-          </div>
-        </div>
-
-        <div id="view-original" class="row tr-view tr-doc-container" style="display: none;">
-          <div class="col-md-12 no-float">
-            <div class="tr-document">
-              <p>Lorem ipsum dolor sit amet, Simon Smith adipiscing elit. Cras ultrices ultrices mauris, non tincidunt neque consequat vitae.</p>
-              <p>Phasellus auctor semper nulla. Ut fringilla pretium mattis. Nam bibendum enim at consectetur eleifend. Julie Brown dignissim velit, Department of Mollis lectus. Mauris tristique nisl sed ex condimentum, eu sagittis arcu laoreet. Phasellus ultrices erat a ante hendrerit iaculis. Peter James consectetur suscipit viverra. Integer vel massa auctor metus placerat consectetur ut placerat tortor. Fusce convallis facilisis dolor vel mattis.</p>
-              <p>Canberra eget turpis id viverra. Sydney dignissim sem eu lobortis lacinia. Duis vel mi mollis, aliquet nunc et, porttitor odio. Integer convallis urna ac augue suscipit elementum. Ms Julie Brown at urna nulla. Nam pretium efficitur risus, nec suscipit quam blandit nec. Maecenas ut eros sem. Vivamus Augue Corporation libero eget metus fermentum porttitor at eget velit.</p>
-              <p>Phasellus auctor semper nulla. Ut fringilla pretium mattis. Nam bibendum enim at consectetur eleifend. Ms Brown dignissim velit</p>
-            </div>
-          </div>
-        </div>
+    <h3>Locations</h2>
+    <div id="locations"></div>
     
-        <div id="view-redactions" class="row tr-view" style="display: none;">
-            <div id="view-redactions-sidebar" class="col-xs-3 col-sm-4 col-md-5">
-              <form role="form">
-                <input type="search" class="form-control" id="txt-search" placeholder="Search">
-              </form>
+    <h3>Dates, times, durations</h2>
+    <div id="dates"></div>
+    
+    <h3>Numbers</h2>
+    <div id="numbers"></div>
+  </div>
 
-              <div class="category category-people">
-                People
-                <span class="badge pull-right">0</span>
-              </div>
-              <table id="people-entities" class="entity-list category-people"></table>
-
-              <div class="category category-organisations">
-                Organisations
-                <span class="badge pull-right">0</span>
-              </div>
-              <table id="organisation-entities" class="entity-list category-organisations"></table>
-
-              <div class="category category-locations">
-                Locations
-                <span class="badge pull-right">0</span>
-              </div>
-              <table id="location-entities" class="entity-list category-locations"></table>
-
-              <div class="category category-dates">
-                Date, times and durations
-                <span class="badge pull-right">0</span>
-              </div>
-              <table id="date-entities" class="entity-list category-dates"></table>
-
-              <div class="category category-numbers">
-                Numbers
-                <span class="badge pull-right">0</span>
-              </div>
-              <table id="number-entities" class="entity-list category-numbers"></table>
-
-            </div>
-            <div id="view-redactions-doc" class="col-xs-9 col-sm-8 col-md-7">
-              Document text
-            </div>
-        </div>
-
-        <div id="view-export" class="row tr-view tr-doc-container" style="display: none;">
-          <div class="col-md-12 no-float">
-            <div class="tr-document">
-              <p>Lorem ipsum dolor sit amet, <span class="redacted-text">Simon Smith</span> adipiscing elit. Cras ultrices ultrices mauris, non tincidunt neque consequat vitae.</p>
-              <p>Phasellus auctor semper nulla. Ut fringilla pretium mattis. Nam bibendum enim at consectetur eleifend. <span class="redacted-text">Julie Brown</span> dignissim velit, Department of Mollis lectus. Mauris tristique nisl sed ex condimentum, eu sagittis arcu laoreet. Phasellus ultrices erat a ante hendrerit iaculis. <span class="redacted-text">Peter James</span> consectetur suscipit viverra. Integer vel massa auctor metus placerat consectetur ut placerat tortor. Fusce convallis facilisis dolor vel mattis.</p>
-              <p><span class="redacted-text">Canberra</span> eget turpis id viverra. <span class="redacted-text">Sydney</span> dignissim sem eu lobortis lacinia. Duis vel mi mollis, aliquet nunc et, porttitor odio. Integer convallis urna ac augue suscipit elementum. Ms Julie Brown at urna nulla. Nam pretium efficitur risus, nec suscipit quam blandit nec. Maecenas ut eros sem. Vivamus <span class="redacted-text">Augue Corporation</span> libero eget metus fermentum porttitor at eget velit.</p>
-              <p>Phasellus auctor semper nulla. Ut fringilla pretium mattis. Nam bibendum enim at consectetur eleifend. <span class="redacted-text">Ms Brown</span> dignissim velit</p>
-            </div>
-          </div>
-        </div>
-    </div>
-
-
-    <div id="settings-dialog" class="modal fade">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-            <h4 class="modal-title">Settings</h4>
-          </div>
-          <div class="modal-body">
-            <p>&nbsp;</p>
-            <p>&nbsp;</p>
-            <p>&nbsp;</p>
-            <p>&nbsp;</p>
-            <p>&nbsp;</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-primary">Save</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-
-    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-    <script src="./js/jquery.min.js"></script>
-    <!-- Include all compiled plugins (below), or include individual files as needed -->
-    <script src="js/bootstrap.min.js"></script>
-    <script>
-    $(function() {
-      init();
-    })
-    </script>
-  </body>
+  <h2>Redact PDF</h2>
+  <div id="redactPdf">
+    <button name="redact">Redact</button>
+  </div>
+  
+  <h2>Legal</h2>
+  Copyright © 2014 NICTA. <a href="RedactionTool - WebsiteTermsOfUse - 3OCT2014.pdf">Terms of Use</a>,
+  <a href="RedactionService-SupplementalPrivacyPolicy -3OCT14_v2.pdf">Privacy Policy</a> and
+  <a href="https://github.com/NICTA/t3as-redact/blob/master/THIRD_PARTY_LICENSES">Acknowledgements</a>.
+  <p>
+  The source code for this service is freely available under the AGPL and consists of the
+  <a href="https://github.com/NICTA/t3as-redact">web service and user interface</a> and
+  <a href="https://github.com/NICTA/t3as-pdf">PDF redaction</a>.
+</body>
 </html>

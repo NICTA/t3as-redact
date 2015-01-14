@@ -451,6 +451,14 @@ function Controller() {
     { parent : $('#numbers'), classes : [ 'NUMBER', 'PERCENT', 'PERCENTAGE', 'MONEY' ], label : 'Number' }
   ];
   
+  // usage: ner2class[ne.ner] -> class name (the first in the list)
+  this.ner2class = {};
+  $.each(this.tableConfig, function(i, tc) {
+    $.each(tc.classes, function(j, c) {
+      self.ner2class[c] = tc.classes[0];
+    });
+  });
+  
   var genNeTypeItems = function() { // generate a <li> for each tableConfig item, ner is the named entity type
     return $.map(self.tableConfig, function(tc, idx) {
       return $('<li>').append($('<a>').attr({ 'class':  'entity-type ' + tc.classes[0].toLowerCase(), ner: tc.classes[0], tabindex: '-1' }).text(tc.label));
@@ -467,7 +475,7 @@ function Controller() {
   var ed = $('#view-redactions-edit-menu ul');
   ed.append(genNeTypeItems())
     .append($('<li>').addClass('divider'))
-    .append($('<li>').append($('<a>').attr({ 'class': 'delete', action: 'delete', tabindex: '-1' }).text('Delete')));
+    .append($('<li>').append($('<a>').attr({ 'class': 'delete', ner: 'delete', tabindex: '-1' }).text('Delete')));
   $('a', ed).on('click', function(e) {
     var ner = $(e.target).attr('ner');
     ner === 'delete' ? self.deleteEntity() : self.editEntity(ner);
@@ -479,17 +487,27 @@ function Controller() {
     : 'rest/v1.0'                                   // use relative path when page served from webapp
   );
 
-  // Respond to file selection from user
   $('#file-upload-form input[type=file]').on('change', function(ev) {
-    // log.debug('init: ev.target.files =', ev.target.files);
+    // log.debug('Controller.ctor.file.change: ev.target.files =', ev.target.files);
     self.openFile(ev.target.files[0]);
   });
 
-  // Wire up temporary drag-drop indicator.
-  // TODO: Update when document drag-drop functionality is implemented
-  var img = $('#start-drag-drop img');
-  img.mouseover(function() { img.attr('src', 'images/start_hover.png') });
-  img.mouseout(function() { img.attr('src', 'images/start.png') });
+  var dropFile = $('#drop-file');
+  $('img', dropFile).on('dragover', function(ev) {
+    ev.originalEvent.dataTransfer.dropEffect = 'move';
+    return false;
+  }).on('dragenter', function() {
+    $(this).attr('src', 'images/start_hover.png');
+    dropFile.addClass('dragover'); // TODO: change image using CSS rather than javascript
+  }).on('dragleave', function() {
+    $(this).attr('src', 'images/start.png');
+    dropFile.removeClass('dragover');
+  }).on('drop', function(ev) {
+    var files = ev.originalEvent.dataTransfer.files;
+    log.debug('Controller.ctor.file.drop: files =', files);
+    if (files.length > 0) self.openFile(files[0]);
+    return false;
+  });
   
   $("#view-redactions-doc").on('mouseup', function(e) {
     self.editNamedEntity(e, window.getSelection().getRangeAt(0));
@@ -521,11 +539,15 @@ Controller.prototype.showOpenFileDialog = function() {
 
 Controller.prototype.openFile = function(pdfFile) {
   var self = this;
+  // this.closeFile();
   
   var spin = '#view-original .spinner';
   this.addSpinner(spin);
   $('#view-original iframe').attr( { onload: "controller.clearSpinner('" + spin + "')" } );
   $('#file-upload-form').attr( { action: this.client.baseUrl + '/echo', target: 'orig-pdf' } ).submit(); // load orig PDF into orig-pdf iframe
+  // TODO: This works for File > Open using '#file-upload-form input[type=file]'
+  // but it doesn't work for dropping a file because that can't set '#file-upload-form input[type=file]'!
+  // To fix it we'll have to figure out how to post multipart/form-data without using the form.
 
   // Select the 'Original' view tab and display the tabs
   $('#btn-view-original').button('toggle');
@@ -621,105 +643,174 @@ Controller.prototype.populateEntities = function() {
   var elem = $('#view-redactions-sidebar .generated-entities'); 
   elem.empty();
   elem.append($.map(this.tableConfig, function(tblCfg, tblCfgIdx) {
-    return $('<div>').addClass(tblCfg.classes[0].toLowerCase())
-      .append($('<div>').addClass('category').text(tblCfg.label).append($('<span>').addClass('badge pull-right')))
+    return $('<div>').addClass('type ' + tblCfg.classes[0].toLowerCase())
+      .append($('<div>').attr({'class': 'category', ner: tblCfg.classes[0]}).text(tblCfg.label))
       .append($.map(self.model.namedEntities, function(ne, neIdx) {
-        return tblCfg.classes.indexOf(ne.ner) === -1 ? undefined : $('<div>').attr( { 'class': 'entity-info', neIdx: neIdx } )
-          .append($('<div>').addClass('redaction-checkbox').append($('<input>').attr( { type: 'checkbox' } )))
-          .append($('<div>').addClass('entity-name').text(ne.representative.text))
-          // .append($('<span>').addClass('badge pull-right').text(ne.coRefs.length + 1))
-          .append($('<div>').addClass('count').append($('<span>').addClass('badge').text(ne.coRefs.length + 1)))
-          .append($('<div>').addClass('redaction-reason').append($('<input>').attr('type', 'text').val('reason')))
-          .append($('<ul>').addClass('entity-corefs').append(
-            $('<li>').attr( { neIdx: neIdx } ).text(ne.representative.text),
-            $.map(ne.coRefs, function(coRef, coRefIdx) {
-              return $('<li>').attr( { neIdx: neIdx, coRefIdx: coRefIdx } ).text(coRef.text);
-            })
-          ));
+        return tblCfg.classes.indexOf(ne.ner) === -1 ? undefined : $('<div>').attr({'class': 'entity', neIdx: neIdx, draggable: 'true'})
+          .append($('<div>').addClass('redaction-checkbox').append($('<input>').attr({ type: 'checkbox' })))
+          .append($('<div>').addClass('count'))
+          .append($('<div>').attr({ 'class': 'entity-info'})
+            .append($('<div>').attr({ 'class': 'entity-name'}).text(ne.representative.text))
+            .append($('<div>').addClass('redaction-reason').append($('<input>').attr('type', 'text').val('reason')))
+            .append($('<ul>').addClass('entity-corefs').append($.map(ne.coRefs, function(coRef, coRefIdx) {
+              return $('<li>').attr({neIdx: neIdx, coRefIdx: coRefIdx, draggable: 'true'}).append($('<span>').addClass('badge').text(coRef.text));
+            })))
+          );
       }));
   }));
   
-  function count(info) { return self.model.namedEntities[info.attr('neIdx')].coRefs.length + 1; };
+  function numCorefs(entity) { return self.model.namedEntities[entity.attr('neIdx')].coRefs.length; };
   
-  function deselect(info) {
+  function deselect(entities) {
     var doc = $('#view-redactions-doc');
-    info.add($('li', info)).add($('span', doc)).removeClass('selected half-selected');
+    entities.add($('.entity-name, li', entities)).add($('span', doc)).removeClass('selected half-selected');
     doc.removeClass('highlight');
     
-    // reset badge content to just count
-    $.each(info, function(idx, inf) {
-      var inf2 = $(inf);
-      $('.count', inf2).empty().append($('<span>').addClass('badge').text(count(inf2)));
+    // set coRef count
+    $.each(entities, function(idx, entity) {
+      var ent = $(entity);
+      var count = $('.count', ent).empty();
+      var n = numCorefs(ent); // undefined
+      if (n > 0) count.append($('<span>').addClass('badge').text(n));
     });
   };
   
-  function selectRepresentativeRef(doc, neIdx) {
-    $('[neIdx=' + neIdx + ']:not([coRefIdx])', doc).addClass('selected');
-    $('[neIdx=' + neIdx + '][coRefIdx]', doc).addClass('half-selected');    
-  };
-  
-  function selectCoRef(doc, neIdx, coRefIdx) {
-    $('[neIdx=' + neIdx + '][coRefIdx=' + coRefIdx + ']', doc).addClass('selected');
-    $('[neIdx=' + neIdx + ']:not([coRefIdx=' + coRefIdx + '])', doc).addClass('half-selected');
-  };
-  
-  function select(info, selectedIdx) {
-    var sel = $('li:nth-child(' + selectedIdx + ')', info);
-    info.add(sel).addClass('selected');
+  function select(entity, selectedIdx) {
+    var sel = $(selectedIdx === 0 ? '.entity-name' : '.entity-corefs li:nth-child(' + selectedIdx + ')', entity); // 1st child is 1
+    entity.add(sel).addClass('selected');
 
     var doc = $('#view-redactions-doc');
     doc.addClass('highlight');
     
     // mark unique exact match 'selected', match other ref's 'half-selected'
-    var neIdx = info.attr('neIdx');
-    if (selectedIdx === 1) {
-      selectRepresentativeRef(doc, neIdx);
+    var neIdx = entity.attr('neIdx');
+    if (selectedIdx === 0) {
+      $('[neIdx=' + neIdx + ']:not([coRefIdx])', doc).addClass('selected');
+      $('[neIdx=' + neIdx + '][coRefIdx]', doc).addClass('half-selected');    
     } else {
-      selectCoRef(doc, neIdx, sel.attr('coRefIdx'));
+      var coRefIdx = sel.attr('coRefIdx');
+      $('[neIdx=' + neIdx + '][coRefIdx=' + coRefIdx + ']', doc).addClass('selected');
+      $('[neIdx=' + neIdx + ']:not([coRefIdx=' + coRefIdx + '])', doc).addClass('half-selected');
     }
     
-    // set badge content to count and nav buttons
-    $.each(info, function(idx, inf) {
-      var inf2 = $(inf);
-      $('.count', inf2).empty().append(
-        $('<a>').addClass('prev').text('<'),
-        $('<span>').addClass('badge').text(selectedIdx + ' of ' + count(inf2)),
-        $('<a>').addClass('next').text('>')
-      );
-    });
+    $('.count', entity).empty(); // delete badge
   };
   
-  $('.entity-info', elem).click(function() {
-    var info = $(this);
-    if (count(info) > 1) {
-      var wasSelected = info.hasClass('selected');
-      
-      // hide all currently selected entity-infos and reset their badge (expect 0..1)
-      deselect($('div.entity-info.selected', elem));
-      
-      // show the selected one only if it was hidden
-      if (!wasSelected) select(info, 1);
-    }
+  // Drag and drop
+  // source:         representative     coRef
+  // --------------+---------------------------------
+  // target:       | a) only if         b) yes - promotes   
+  // entity type   | diff type          to top level entity           
+  //               +---------------------------------             
+  // representative| c) only if         d) only if diff 
+  //               | diff entity -      entity
+  //               | makes it (and  
+  //               | its coRefs)  
+  //               | coRefs of the target
+  // --------------+---------------------------------
+
+  var dragData = {}; // work around dataTransfer.getData() not being available in 'dragover'
+  
+  function isDropable(target) {
+    var neIdx = target.attr('neIdx');
+    log.debug('Controller.populateEntities.isDropable: neIdx =', neIdx, 'dragData =', dragData);
+    if (typeof neIdx !== 'undefined') return neIdx !== dragData.neIdx; // c), d)
+    else if (typeof dragData.coRefIdx !== 'undefined') return true;    // b)
+    else {
+      var ne = self.model.namedEntities[dragData.neIdx];
+      return self.ner2class[ne.ner] !== target.attr('ner'); // a)
+    };
+  };
+    
+  $('[draggable]', elem).on('dragstart', function(ev) {
+    var source = $(this);
+    source.addClass('dragged');
+    dragData = {neIdx: source.attr('neIdx'), coRefIdx: source.attr('coRefIdx')};
+    log.debug('Controller.populateEntities.onDragStart: ev =', ev, 'this =', this, 'dragData =', dragData);
+    // ev.originalEvent.dataTransfer.setData('application/json', JSON.stringify(dragData)); // set json drag data
+    ev.originalEvent.dataTransfer.effectAllowed = 'move';
+    ev.stopPropagation(); // stop dragging a coRef/li also trigging dragging it's representative/.entity
+  }).on('dragend', function() {
+    $(this).removeClass('dragged');
+    dragData = {};
+  });
+  
+  $('.category, .entity', elem).on('dragover', function(ev) {
+    var d = isDropable($(this));
+    log.debug('Controller.populateEntities.onDragOver: ev =', ev, 'this =', this, 'd =', d);
+    if (d) ev.originalEvent.dataTransfer.dropEffect = 'move';
+    return !d; // false allows drop
+  }).on('dragenter', function() {
+    if (isDropable($(this))) $(this).addClass('dragover');
+  }).on('dragleave', function() {
+    $(this).removeClass('dragover');
+  }).on('drop', function(ev) {
+    var target = $(this);
+    // log.debug('Controller.populateEntities.onDrop: ev =', ev);
+    target.removeClass('dragover');
+    // var dragData = JSON.parse(ev.originalEvent.dataTransfer.getData('application/json'));
+    log.debug('Controller.populateEntities.onDrop: dragData =', dragData);
+    var nes = self.model.namedEntities; // update inplace to reflect drag and drop
+    var neIdx = target.attr('neIdx');
+    if (typeof neIdx !== 'undefined') {
+      if (typeof dragData.coRefIdx !== 'undefined') {
+        // d) move coRef to coRef of neIdx
+        var coRef = nes[dragData.neIdx].coRefs.splice(dragData.coRefIdx, 1)[0];
+        nes[neIdx].coRefs.push(coRef);
+      } else {
+        // c) move representative (and its coRefs) to coRef of neIdx
+        var dst = nes[neIdx].coRefs;
+        var ne = nes.splice(dragData.neIdx, 1)[0];
+        dst.push(ne.representative);
+        Array.prototype.push.apply(dst, ne.coRefs);
+        if (dragData.neIdx < neIdx) neIdx--; // deleted an earlier element, so dst now has lower index
+      }
+    } else {
+      var ner = target.attr('ner');
+      if (typeof dragData.coRefIdx !== 'undefined') {
+        // b) move coRef to create a new representative mention
+        var coRef = nes[dragData.neIdx].coRefs.splice(dragData.coRefIdx, 1)[0];
+        neIdx = nes.push({ representative: coRef, ner: ner, coRefs: []}) - 1;
+      } else {
+        // a) move representative (and its coRefs) to a different entity type
+        nes[dragData.neIdx].ner = ner;
+        neIdx = dragData.neIdx;
+      };
+    };
+    
+    self.populateProcessedText();
+    self.populateEntities();
+    select($('.entity[neIdx=' + neIdx + ']', elem), 0);
+    return false;
+  });
+  
+  $('.entity-name', elem).click(function() {
+    var name = $(this);
+    var entity = name.closest('.entity');
+    var expand = !entity.hasClass('selected') || !name.hasClass('selected');
+    deselect($('.entity.selected', elem));
+    if (expand) select(entity, 0);
   });
   
   $('.entity-info li', elem).click(function() {
     var li = $(this);
     if (!li.hasClass('selected')) {
-      var info = li.closest('.entity-info');
-      deselect(info);
-      select(info, li.index() + 1);
+      var entity = li.closest('.entity');
+      deselect(entity);
+      select(entity, li.index() + 1);
     };
-    return false;
   });
   
-  $('.entity-info .redaction-checkbox input', elem).click(function() {
+  $('.entity .redaction-checkbox input', elem).click(function() {
     var cb = $(this);
-    var neIdx = cb.closest('.entity-info').attr('neIdx');
-    var spans = $('#view-redactions-doc span[neidx=' + neIdx + ']');
-    if (cb.is(":checked")) spans.addClass('redacted');
-    else spans.removeClass('redacted');
-    // return false; this stops the checkbox getting ticked!
+    var entity = cb.closest('.entity');
+    var neIdx = entity.attr('neIdx');
+    var x = $('#view-redactions-doc span[neidx=' + neIdx + ']').add(entity);
+    if (cb.is(":checked")) x.addClass('redacted');
+    else x.removeClass('redacted');
   });
+  
+  deselect($('.entity', elem));
 };
 
 Controller.prototype.populateProcessedText = function() {
@@ -732,14 +823,7 @@ Controller.prototype.populateProcessedText = function() {
  * markup named entities in text
  */ 
 Controller.prototype.markup = function() {
-  // usage: ner2class[ne.ner] -> class name (the first in the list)
-  ner2class = {};
-  $.each(this.tableConfig, function(i, tc) {
-    $.each(tc.classes, function(j, c) {
-      ner2class[c] = tc.classes[0];
-    });
-  });
-  
+  var self = this;
   var d = $.map(this.model.namedEntities, function(ne, neIdx) {
     // array of coRefs + representative mention
     var r = $.map(ne.coRefs, function(cr, coRefIdx) {
@@ -758,7 +842,7 @@ Controller.prototype.markup = function() {
 
   var m = new Markup(this.model.text);
   $.each(d, function(idx, x) {
-    var t = '<span class="' + ner2class[x.ner].toLowerCase() + '" neIdx="' + x.neIdx + '"' + (typeof x.coRefIdx === 'undefined' ? '' : ' coRefIdx="' + x.coRefIdx + '"') + '>';
+    var t = '<span class="' + self.ner2class[x.ner].toLowerCase() + '" neIdx="' + x.neIdx + '"' + (typeof x.coRefIdx === 'undefined' ? '' : ' coRefIdx="' + x.coRefIdx + '"') + '>';
     // log.debug('util.markup: t =', t, 'text', text.slice(x.start, x.end), 'x', x);
     m.insert(x.start, t);
     m.insert(x.end, '</span>');
@@ -863,10 +947,10 @@ Controller.prototype.redactPdf = function() {
   var elem = $("#view-redactions-sidebar");
   
   var redact = $.map($("input[type='checkbox']:checked", elem), function(cb, idx) {
-    var info = $(cb).closest('.entity-info');
-    var neIdx = info.attr('neIdx');
+    var entity = $(cb).closest('.entity');
+    var neIdx = entity.attr('neIdx');
     var ne = self.model.namedEntities[neIdx]; // lookup namedEntity using each checkbox neIdx attr
-    var reason = $('input[type=text]', info).val();
+    var reason = $('input[type=text]', entity).val();
     log.debug('Controller.redactPdf: ne =', ne, 'reason =', reason);
     // flatten the representative ne and its coRefs
     return $.map([ ne.representative ].concat(ne.coRefs), function(a, idx) {

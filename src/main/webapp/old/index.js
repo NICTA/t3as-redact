@@ -655,7 +655,7 @@ var updateTree;
 $(document).ready(function() {
   baseUrl = window.location.protocol === 'file:'
     ? 'http://localhost:8080/redact/rest/v1.0' // use this when page served from a local file during dev
-    : 'rest/v1.0';                             // use relative path when page served from webapp
+    : '../rest/v1.0';                          // use relative path when page served from webapp
 
   $("#extractText input[type=file]").on('change', function(ev) { pdfFile = ev.target.files; });
   $("#extractText button").on('click', extractText);
