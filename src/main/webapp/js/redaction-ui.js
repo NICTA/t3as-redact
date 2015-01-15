@@ -331,6 +331,40 @@ function Client(baseUrl) {
   this.baseUrl = baseUrl;
 };
 
+// TODO: almost identical to extractText and redactPdf below
+Client.prototype.echo = function(pdfFile, success, error) {
+  try {
+    var self = this;
+    var formData = new FormData();
+    formData.append('pdfFile', pdfFile);
+    log.debug('Client.echo: pdfFile =', pdfFile, 'formData =', formData);
+    $.ajax({
+      type : 'POST',
+      url : self.baseUrl + '/echo',
+      data :  formData,
+      contentType: false, // http://abandon.ie/notebook/simple-file-uploads-using-jquery-ajax
+      processData: false,
+      dataType : 'binary',
+      success : function(data, textStatus, jqXHR) {
+        try {
+          log.debug('Client.echo success: textStatus =', textStatus, 'jqXHR =', jqXHR);
+          success(data);
+        } catch (e) {
+          log.error('Client.echo success:', e);
+          error();
+        };
+      },
+      error : function(jqXHR, textStatus, errorThrown) {
+        log.ajaxError(jqXHR, textStatus, errorThrown);
+        error();
+      }
+    });
+  } catch (e) {
+    log.error('Client.echo:', e);
+    error();
+  };
+};
+
 Client.prototype.extractText = function(pdfFile, success, error) {
   try {
     var self = this;
@@ -341,7 +375,7 @@ Client.prototype.extractText = function(pdfFile, success, error) {
       type : 'POST',
       url : self.baseUrl + '/extractText',
       data :  formData,
-      contentType: false, // http://abandon.ie/notebook/simple-file-uploads-using-jquery-ajax, https://github.com/Abban/jQueryFileUpload/blob/master/script.js
+      contentType: false, // http://abandon.ie/notebook/simple-file-uploads-using-jquery-ajax
       processData: false,
       dataType : 'json',
       cache: false,
@@ -350,7 +384,7 @@ Client.prototype.extractText = function(pdfFile, success, error) {
           log.debug('Client.extractText success: data =', data, 'textStatus =', textStatus, 'jqXHR =', jqXHR);
           success(data.pages);
         } catch (e) {
-          log.error('Client.extractText success: url = ' + url, e);
+          log.error('Client.extractText success:', e);
           error();
         };
       },
@@ -361,6 +395,40 @@ Client.prototype.extractText = function(pdfFile, success, error) {
     });
   } catch (e) {
     log.error('Client.extractText:', e);
+    error();
+  };
+};
+
+Client.prototype.redactPdf = function(pdfFile, redact, success, error) {
+  try {
+    var self = this;
+    var formData = new FormData();
+    formData.append('pdfFile', pdfFile);
+    formData.append('redact', JSON.stringify({ redact: redact }));
+    log.debug('Client.redactPdf: pdfFile =', pdfFile, 'formData =', formData);
+    $.ajax({
+      type : 'POST',
+      url : self.baseUrl + '/redact',
+      data :  formData,
+      contentType: false, // or "multipart/form-data"? See: http://abandon.ie/notebook/simple-file-uploads-using-jquery-ajax
+      processData: false,
+      dataType : 'binary',
+      success : function(data, textStatus, jqXHR) {
+        try {
+          log.debug('Client.redactPdf success: textStatus =', textStatus, 'jqXHR =', jqXHR);
+          success(data);
+        } catch (e) {
+          log.error('Client.redactPdf success:', e);
+          error();
+        };
+      },
+      error : function(jqXHR, textStatus, errorThrown) {
+        log.ajaxError(jqXHR, textStatus, errorThrown);
+        error();
+      }
+    });
+  } catch (e) {
+    log.error('Client.redactPdf:', e);
     error();
   };
 };
@@ -439,6 +507,42 @@ Client.prototype.coreNlpNERWithCoref = function(txt, success, error) {
  * Controller (and View): initialization
  */
 function Controller() {
+  window.URL = window.URL || window.webkitURL;
+  
+  // http://www.henryalgus.com/reading-binary-files-using-jquery-ajax/
+  $.ajaxTransport("+binary", function(options, originalOptions, jqXHR) {
+    // check for conditions and support for blob / arraybuffer response type
+    if (window.FormData && ((options.dataType && (options.dataType == 'binary')) || (options.data && ((window.ArrayBuffer && options.data instanceof ArrayBuffer) || (window.Blob && options.data instanceof Blob)))))
+    {
+      return {
+        // create new XMLHttpRequest
+        send: function(_, callback){
+          // setup all variables
+          var xhr = new XMLHttpRequest(),
+          url = options.url,
+          type = options.type,
+          // blob or arraybuffer. Default is blob
+          dataType = options.responseType || "blob",
+          data = options.data || null;
+
+          xhr.addEventListener('load', function(){
+            var data = {};
+            data[options.dataType] = xhr.response;
+            // make callback and send data
+            callback(xhr.status, xhr.statusText, data, xhr.getAllResponseHeaders());
+          });
+
+          xhr.open(type, url, true);
+          xhr.responseType = dataType;
+          xhr.send(data);
+        },
+        abort: function(){
+          jqXHR.abort();
+        }
+      };
+    }
+  });
+  
   this.model = {};
   var self = this;
   
@@ -539,45 +643,49 @@ Controller.prototype.showOpenFileDialog = function() {
 
 Controller.prototype.openFile = function(pdfFile) {
   var self = this;
-  // this.closeFile();
+  this.closeFile();
   
   var spin = '#view-original .spinner';
   this.addSpinner(spin);
-  $('#view-original iframe').attr( { onload: "controller.clearSpinner('" + spin + "')" } );
-  $('#file-upload-form').attr( { action: this.client.baseUrl + '/echo', target: 'orig-pdf' } ).submit(); // load orig PDF into orig-pdf iframe
-  // TODO: This works for File > Open using '#file-upload-form input[type=file]'
-  // but it doesn't work for dropping a file because that can't set '#file-upload-form input[type=file]'!
-  // To fix it we'll have to figure out how to post multipart/form-data without using the form.
+ 
+  function echoSuccess(blob) {
+    self.clearSpinner(spin); // TODO could handle this for both success & error in a $.ajax({ complete: function() {} })
+    self.model.pdfFile = pdfFile;
+    self.model.origPdfObjectURL = URL.createObjectURL(blob); // revoke in closeFile(), if done before then returning to the 'Original' tab shows no content
+    $('#view-original-pdf').append($('<embed>').attr({type: 'application/pdf', src: self.model.origPdfObjectURL }));
 
-  // Select the 'Original' view tab and display the tabs
-  $('#btn-view-original').button('toggle');
-  $('#view-nav').fadeIn();
+    // Select the 'Original' view tab and display the tabs
+    $('#btn-view-original').button('toggle');
+    $('#view-nav').fadeIn();
 
-  // Enable the close command on the file menu
-  $('#cmd-close-doc').removeClass('disabled');
-  
-  // Set the document name
-  $('#filename').text(pdfFile.name)
+    // Enable the close command on the file menu
+    $('#cmd-close-doc').removeClass('disabled');
+    
+    // Set the document name
+    $('#filename').text(pdfFile.name)
 
-  // TODO: Set display filename for the redacted version (probably at a later stage)
-  $('#redacted-filename').text(pdfFile.name.split('.')[0] + '_redacted.pdf')
+    // TODO: Set display filename for the redacted version (probably at a later stage)
+    $('#redacted-filename').text(pdfFile.name.split('.')[0] + '_redacted.pdf')
 
-  // Show the original PDF view
-  this.showView('view-original');
+    // Show the original PDF view
+    self.showView('view-original');
 
-  // finally extract then process text
-  
-  function success(pages) {
-    self.processText(pages);    
+    // finally extract then process text
+    self.client.extractText(pdfFile, function(data) { self.processText(data); }, error);
+  };
+
+ function error() {
+    self.clearSpinner(spin);
   };
   
-  function error() {};
-  
-  this.client.extractText(pdfFile, success, error);
+  this.client.echo(pdfFile, echoSuccess, error);
 };
 
 Controller.prototype.closeFile = function() {
+  if (this.model.origPdfObjectURL) URL.revokeObjectURL(this.model.origPdfObjectURL);
+  if (this.model.redactedPdfObjectURL) URL.revokeObjectURL(this.model.redactedPdfObjectURL);
   this.model = {};
+  $('#view-original .spinner, #view-original-pdf, #view-redactions-sidebar .generated-entities, #view-redactions-doc, #view-export .spinner, #view-export-pdf').empty();
   
   // Clear hidden form fields
   $('#file-upload-form input').val('');
@@ -961,12 +1069,29 @@ Controller.prototype.redactPdf = function() {
   });
   log.debug('redactPdf: redact =', redact);
   
+  if (this.model.redactedPdfObjectURL) {
+    URL.revokeObjectURL(this.model.redactedPdfObjectURL);
+    this.model.redactedPdfObjectURL = undefined;
+  }
+
   var spin = '#view-export .spinner';
   this.addSpinner(spin);
-  $('#view-export iframe').attr( { onload: "controller.clearSpinner('" + spin + "')" } );
-  var f = $('#file-upload-form');
-  $('input[name=redact]', f).val(JSON.stringify( { redact: redact } ));
-  f.attr( { action: this.client.baseUrl + '/redact', target: 'export-pdf' } ).submit(); // load redacted PDF into export-pdf iframe
+//  $('#view-export iframe').attr( { onload: "controller.clearSpinner('" + spin + "')" } );
+//  var f = $('#file-upload-form');
+//  $('input[name=redact]', f).val(JSON.stringify( { redact: redact } ));
+//  f.attr( { action: this.client.baseUrl + '/redact', target: 'export-pdf' } ).submit(); // load redacted PDF into export-pdf iframe
+  
+  function redactPdfSuccess(blob) {
+    self.clearSpinner(spin); // TODO could handle this for both success & error in a $.ajax({ complete: function() {} })
+    self.model.redactedPdfObjectURL = URL.createObjectURL(blob); // revoke in closeFile(), if done before then returning to the 'Export' tab shows no content
+    $('#view-export-pdf').append($('<embed>').attr({type: 'application/pdf', src: self.model.redactedPdfObjectURL }));
+  };
+  
+  function error() {
+    self.clearSpinner(spin);
+  };
+  
+  this.client.redactPdf(this.model.pdfFile, redact, redactPdfSuccess, error);
 };
 
 var controller;
