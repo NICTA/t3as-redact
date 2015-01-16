@@ -509,6 +509,7 @@ Client.prototype.coreNlpNERWithCoref = function(txt, success, error) {
 function Controller() {
   window.URL = window.URL || window.webkitURL;
   
+  // Add dataType 'binary' for jQuery ajax
   // http://www.henryalgus.com/reading-binary-files-using-jquery-ajax/
   $.ajaxTransport("+binary", function(options, originalOptions, jqXHR) {
     // check for conditions and support for blob / arraybuffer response type
@@ -610,6 +611,7 @@ function Controller() {
     var files = ev.originalEvent.dataTransfer.files;
     log.debug('Controller.ctor.file.drop: files =', files);
     if (files.length > 0) self.openFile(files[0]);
+    $(this).attr('src', 'images/start.png');
     return false;
   });
   
@@ -1052,8 +1054,8 @@ Controller.prototype.editEntity = function(ner) {
 
 Controller.prototype.redactPdf = function() {
   var self = this;
-  var elem = $("#view-redactions-sidebar");
   
+  var elem = $("#view-redactions-sidebar");  
   var redact = $.map($("input[type='checkbox']:checked", elem), function(cb, idx) {
     var entity = $(cb).closest('.entity');
     var neIdx = entity.attr('neIdx');
@@ -1069,11 +1071,6 @@ Controller.prototype.redactPdf = function() {
   });
   log.debug('redactPdf: redact =', redact);
   
-  if (this.model.redactedPdfObjectURL) {
-    URL.revokeObjectURL(this.model.redactedPdfObjectURL);
-    this.model.redactedPdfObjectURL = undefined;
-  }
-
   var spin = '#view-export .spinner';
   this.addSpinner(spin);
 //  $('#view-export iframe').attr( { onload: "controller.clearSpinner('" + spin + "')" } );
@@ -1082,13 +1079,18 @@ Controller.prototype.redactPdf = function() {
 //  f.attr( { action: this.client.baseUrl + '/redact', target: 'export-pdf' } ).submit(); // load redacted PDF into export-pdf iframe
   
   function redactPdfSuccess(blob) {
-    self.clearSpinner(spin); // TODO could handle this for both success & error in a $.ajax({ complete: function() {} })
-    self.model.redactedPdfObjectURL = URL.createObjectURL(blob); // revoke in closeFile(), if done before then returning to the 'Export' tab shows no content
+    $(spin + ', #view-export-pdf').empty(); // TODO could handle this for both success & error in a $.ajax({ complete: function() {} })
+
+    if (self.model.redactedPdfObjectURL) {
+      URL.revokeObjectURL(self.model.redactedPdfObjectURL);
+    }
+    self.model.redactedPdfObjectURL = URL.createObjectURL(blob);
+    
     $('#view-export-pdf').append($('<embed>').attr({type: 'application/pdf', src: self.model.redactedPdfObjectURL }));
   };
   
   function error() {
-    self.clearSpinner(spin);
+    $(spin + ', #view-export-pdf').empty();
   };
   
   this.client.redactPdf(this.model.pdfFile, redact, redactPdfSuccess, error);
