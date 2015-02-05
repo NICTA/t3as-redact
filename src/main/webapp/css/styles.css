@@ -241,7 +241,7 @@ html, body
   font-weight: bold;
 }
 
-#view-redactions .dropdown-menu .entity-type, #view-redactions-doc span {
+#view-redactions-doc span {
   color: white;
 }
 
@@ -250,7 +250,31 @@ html, body
   background-color: grey;
 }
 
-#view-redactions-sidebar .person .category, #view-redactions-doc .person, #view-redactions-doc.highlight .person.selected, #view-redactions .dropdown-menu .person
+#view-redactions-create-menu .dropdown-menu, #view-redactions-edit-menu .dropdown-menu
+{
+    padding-right: 10px;
+}
+
+/* draw a circle before entity-type menu items */
+#view-redactions .dropdown-menu .entity-type:before
+{
+  content: "";  
+  width: 1em;
+  height: 1em;
+  float: left;
+  margin-right: 0.5em;
+  margin-top: 0.2em;
+  border-radius: 50%;
+}
+
+#view-redactions .dropdown-menu .entity-type.current
+{  
+  font-weight: bold; 
+}
+
+/* person */
+
+#view-redactions-sidebar .person .category, #view-redactions-doc .person, #view-redactions-doc.highlight .person.selected, #view-redactions .dropdown-menu .entity-type.person:before
 {
   background-color: #F45B58;
 }
@@ -260,7 +284,9 @@ html, body
   background-color: #f4a8a6;
 }
 
-#view-redactions-sidebar .organization .category, #view-redactions-doc .organization, #view-redactions-doc.highlight .organization.selected, #view-redactions .dropdown-menu .organization
+/* organization */
+
+#view-redactions-sidebar .organization .category, #view-redactions-doc .organization, #view-redactions-doc.highlight .organization.selected, #view-redactions .dropdown-menu .entity-type.organization:before
 {
   background-color: #EE9D47;
 }
@@ -270,7 +296,9 @@ html, body
   background-color: #eec69b;
 }
 
-#view-redactions-sidebar .location .category, #view-redactions-doc .location, #view-redactions-doc.highlight .location.selected, #view-redactions .dropdown-menu .location
+/* location */
+
+#view-redactions-sidebar .location .category, #view-redactions-doc .location, #view-redactions-doc.highlight .location.selected, #view-redactions .dropdown-menu .entity-type.location:before
 {
   background-color: #EBC44D;
 }
@@ -280,7 +308,9 @@ html, body
   background-color: #ebd89e;
 }
 
-#view-redactions-sidebar .date .category, #view-redactions-doc .date, #view-redactions-doc.highlight .date.selected, #view-redactions .dropdown-menu .date
+/* date */
+
+#view-redactions-sidebar .date .category, #view-redactions-doc .date, #view-redactions-doc.highlight .date.selected, #view-redactions .dropdown-menu .entity-type.date:before
 {
   background-color: #68C14F;
 }
@@ -290,7 +320,9 @@ html, body
   background-color: #94c187;
 }
 
-#view-redactions-sidebar .number .category, #view-redactions-doc .number, #view-redactions-doc.highlight .number.selected, #view-redactions .dropdown-menu .number
+/* number */
+
+#view-redactions-sidebar .number .category, #view-redactions-doc .number, #view-redactions-doc.highlight .number.selected, #view-redactions .dropdown-menu .entity-type.number:before
 {
   background-color: #48B1E9;
 }
