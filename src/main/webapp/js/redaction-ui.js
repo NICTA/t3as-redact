@@ -588,8 +588,8 @@ function Controller() {
 
   this.client = new Client(
     window.location.protocol === 'file:'
-    ? 'http://203.143.165.82:8080/redact/rest/v1.0' // use this when page served from a local file during dev
-    : 'rest/v1.0'                                   // use relative path when page served from webapp
+    ? 'http://redact.t3as.org/redact/rest/v1.0' // use this when page served from a local file
+    : 'rest/v1.0'                               // use relative path when page served from webapp
   );
 
   $('#file-upload-form input[type=file]').on('change', function(ev) {
