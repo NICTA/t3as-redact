@@ -716,7 +716,7 @@ Controller.prototype.processText = function(pages) {
   
   function success(data) {
     self.clearSpinner(spin);
-    self.updateUI(data.namedEntities);
+    self.updateUI(util.postProcess(data.namedEntities)); // TODO: do we want to make postProcess conditional on 'Settings'
   };
   
   function error() {
@@ -742,7 +742,7 @@ Controller.prototype.processText = function(pages) {
 };
 
 Controller.prototype.updateUI = function(namedEntities) {
-  this.model.namedEntities = util.postProcess(namedEntities); // TODO: do we want to make this conditional on 'Settings'
+  this.model.namedEntities = namedEntities;
   this.populateProcessedText();
   this.populateEntities();  
 };
