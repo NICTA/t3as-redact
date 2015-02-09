@@ -549,20 +549,24 @@ function Controller() {
   
   // map multiple named entity types used by the different NERs to one label and class name (the first in the list) used in the UI
   this.tableConfig = [
-    { parent : $('#people'), classes : [ 'PERSON' ], label : 'Person' },
+    { parent : $('#people'), classes : [ 'PERSON', 'MISC' ], label : 'Person' },
     { parent : $('#organizations'), classes : [ 'ORGANIZATION', 'UNKNOWN' ], label : 'Organization' },
     { parent : $('#locations'), classes : [ 'LOCATION' ], label : 'Location' },
-    { parent : $('#dates'), classes : [ 'DATE', 'TIME' ], label : 'Date, time, duration' },
-    { parent : $('#numbers'), classes : [ 'NUMBER', 'PERCENT', 'PERCENTAGE', 'MONEY' ], label : 'Number' }
+    { parent : $('#dates'), classes : [ 'DATE', 'TIME', 'DURATION', 'SET' ], label : 'Date, time, duration' },
+    { parent : $('#numbers'), classes : [ 'NUMBER', 'PERCENT', 'PERCENTAGE', 'MONEY', 'ORDINAL' ], label : 'Number' }
   ];
   
-  // usage: ner2class[ne.ner] -> class name (the first in the list)
-  this.ner2class = {};
+  // map each class in the arrays above to the first element in the array - this normalises the class names over all the NER implementations 
+  var ner2classMap = {};
   $.each(this.tableConfig, function(i, tc) {
     $.each(tc.classes, function(j, c) {
-      self.ner2class[c] = tc.classes[0];
+      ner2classMap[c] = tc.classes[0];
     });
   });
+  // add a member function to do the above normalisation and default to 'PERSON' for an unknown class
+  this.ner2class = function(c) {
+    return ner2classMap[c] || 'PERSON';
+  };
   
   var genNeTypeItems = function() { // generate a <li> for each tableConfig item, ner is the named entity type
     return $.map(self.tableConfig, function(tc, idx) {
@@ -666,9 +670,6 @@ Controller.prototype.openFile = function(pdfFile) {
     // Set the document name
     $('#filename').text(pdfFile.name)
 
-    // TODO: Set display filename for the redacted version (probably at a later stage)
-    $('#redacted-filename').text(pdfFile.name.split('.')[0] + '_redacted.pdf')
-
     // Show the original PDF view
     self.showView('view-original');
 
@@ -716,22 +717,23 @@ Controller.prototype.processText = function(pages) {
   
   function success(data) {
     self.clearSpinner(spin);
-    self.updateUI(util.postProcess(data.namedEntities)); // TODO: do we want to make postProcess conditional on 'Settings'
+    self.updateUI($('#nerPostProcess').is(':checked') ? util.postProcess(data.namedEntities) : data.namedEntities);
   };
   
   function error() {
     self.clearSpinner(spin);
   };
   
-  // TODO: use 'settings' switch ($('#inputText input[name=nerImpl]:checked').attr('id')) {
-  switch ('nerImplOpenNlp') {
-  case 'nerImplCoreNlpWithCoref':
+  var nerImpl = $('#settings-dialog input[name=nerImpl]:checked').attr('id');
+  log.debug('Controller.processText: nerImpl =', nerImpl)
+  switch (nerImpl) {
+  case 'nerImplCoreNLPWithCoref':
     this.client.coreNlpNERWithCoref(this.model.text, success, error);
     break;
-  case 'nerImplCoreNlp':
+  case 'nerImplCoreNLP':
     this.client.coreNlpNER(this.model.text, success, error);
     break;
-  case 'nerImplOpenNlp':
+  case 'nerImplOpenNLP':
     this.client.openNlpNER(this.model.text, success, error);
     break;
   case 'nerImplNicta':
@@ -768,6 +770,13 @@ Controller.prototype.populateEntities = function() {
           );
       }));
   }));
+  $('.redaction-reason input', elem).focus(function() {
+    x = $(this);
+    if (x.val() === 'reason') x.val('');
+  }).blur(function() {
+    x = $(this);
+    if (x.val() === '') x.val('reason');
+  });
   
   function numCorefs(entity) { return self.model.namedEntities[entity.attr('neIdx')].coRefs.length; };
   
@@ -828,7 +837,7 @@ Controller.prototype.populateEntities = function() {
     else if (typeof dragData.coRefIdx !== 'undefined') return true;    // b)
     else {
       var ne = self.model.namedEntities[dragData.neIdx];
-      return self.ner2class[ne.ner] !== target.attr('ner'); // a)
+      return self.ner2class(ne.ner) !== target.attr('ner'); // a)
     };
   };
     
@@ -952,7 +961,7 @@ Controller.prototype.markup = function() {
 
   var m = new Markup(this.model.text);
   $.each(d, function(idx, x) {
-    var t = '<span class="' + self.ner2class[x.ner].toLowerCase() + '" neIdx="' + x.neIdx + '"' + (typeof x.coRefIdx === 'undefined' ? '' : ' coRefIdx="' + x.coRefIdx + '"') + '>';
+    var t = '<span class="' + self.ner2class(x.ner).toLowerCase() + '" neIdx="' + x.neIdx + '"' + (typeof x.coRefIdx === 'undefined' ? '' : ' coRefIdx="' + x.coRefIdx + '"') + '>';
     // log.debug('util.markup: t =', t, 'text', text.slice(x.start, x.end), 'x', x);
     m.insert(x.start, t);
     m.insert(x.end, '</span>');
@@ -1086,6 +1095,12 @@ Controller.prototype.redactPdf = function() {
     }
     self.model.redactedPdfObjectURL = URL.createObjectURL(blob);
     
+    // Set redacted filename for display and download link
+    var n = self.model.pdfFile.name.split('.')[0] + '_redacted.pdf';
+    $('#redacted-filename').text(n);
+    $('#redacted-download').attr({href: self.model.redactedPdfObjectURL, download: n});
+
+    // display PDF
     $('#view-export-pdf').append($('<embed>').attr({type: 'application/pdf', src: self.model.redactedPdfObjectURL }));
   };
   

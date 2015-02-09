@@ -94,6 +94,28 @@ html, body
   margin: 30px 0;
 }
 
+#settings-dialog .nlp-heading
+{
+  font-weight: bold;
+  color: #337ab7;
+}
+
+#settings-dialog input[type=radio]
+{
+  margin-top: 10px;
+  margin-right: 5px;
+}
+
+#settings-dialog input[type=checkbox]
+{
+  margin-top: 20px;
+  margin-right: 5px;
+}
+
+#nerImplCoreNLPCoref {
+  margin-left: 40px;
+}
+
 /*** Original view ***/
 
 #view-original-pdf
@@ -133,11 +155,16 @@ html, body
 
 /*** Export view ***/
 
-#view-export-header
+#view-export .view-export-header
 {
   background-color: #fff;
   height: 55px;
   padding: 10px 20px;
+}
+
+#view-export .view-export-header .pull-left
+{
+  margin-top: 8px;
 }
 
 #view-export-pdf

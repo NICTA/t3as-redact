@@ -98,15 +98,13 @@
     <!-- Export view -->
     <div id="view-export" class="layout-view" style="display: none;">
         <div class="spinner"></div>
-        <div id="view-export-header" class="layout-row">
-          <div style="margin-top: 8px;" class="pull-left">
+        <div class="view-export-header layout-row">
+          <div class="pull-left">
             <span class="glyphicon glyphicon-file" aria-hidden="true"></span>
             <span id="redacted-filename">[redacted-filename]</span>
           </div>
           <div class="pull-right">
-            <button type="button" class="btn btn-primary">
-              <span class="glyphicon glyphicon-download-alt" aria-hidden="true"></span> Download
-            </button>
+            <a id="redacted-download" href="dynamicallySet" download="dynamicallySet" class="btn btn-primary"><span class="glyphicon glyphicon-download-alt" aria-hidden="true"></span>Download</a>
           </div>
         </div>
         <div id="view-export-pdf"></div>
@@ -120,15 +118,17 @@
             <h4 class="modal-title">Settings</h4>
           </div>
           <div class="modal-body">
-            <p>&nbsp;</p>
-            <p>&nbsp;</p>
-            <p>&nbsp;</p>
-            <p>&nbsp;</p>
-            <p>&nbsp;</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-primary">Save</button>
+            <span class="nlp-heading">NLP implementation</span>
+            <br/>
+            <input type="radio" name="nerImpl" id="nerImplCoreNLP"/><label for="nerImplCoreNLP">Stanford CoreNLP NER</label>
+            <input type="radio" name="nerImpl" id="nerImplCoreNLPCoref"/><label for="nerImplCoreNLPCoref">Stanford CoreNLP NER + Coref</label>
+            <br>
+            <input type="radio" name="nerImpl" id="nerImplOpenNLP" checked="checked"/><label for="nerImplOpenNLP">OpenNLP NER</label>
+            <br>
+            <input type="radio" name="nerImpl" id="nerImplNicta"/><label for="nerImplNicta">NICTA NER</label>
+            <br>
+            <input type="checkbox" name="nerPostProcess" id="nerPostProcess" checked="checked"/><label for="nerPostProcess">Heuristic post-processing</label>
+            <br>
           </div>
         </div>
       </div>
