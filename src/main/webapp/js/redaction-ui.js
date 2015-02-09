@@ -179,7 +179,9 @@ var util = {
    * <li>treat subsequent item of same type and same text as coref
    * <li>if type is PERSON the 'same text' criteria is relaxed so that if the subsequent item contains only words contained in the first mention it is considered a match,
    *     so that 'Abbott' or 'Tony' will be taken to be a reference to a preceding 'Tony Abbott'.
-   * <li>exclude common titles Mr|Mrs|Miss|Ms|Dr from above matching for PERSON.
+   * <li>exclude common titles Mr|Mrs|Miss|Ms|Dr from above matching for PERSON
+   * <li>if type is 'EMAIL' the text prior to the '@' is matched to a PERSON as in rule 3, but using case insensitive comparison and with non-alpha sequences changed to spaces;
+   *     TODO: this could be extended to also match first initial and last name (Fred John Nurk -> fnurk) and first and last names (Fred John Nurk -> frednurk)
    * <li>same as rule 3 but for ORGANIZATION.
    * <li>for ORGANIZATION also accept an acronym.
    * </ol>
@@ -200,7 +202,7 @@ var util = {
     var self = this;
     
     var neMap = {
-      map: {}, // key -> { ne: the ne, words: Set of words in ne.representative.text } 
+      map: {}, // key -> { ne: the ne, words: Set of words in ne.representative.text, wordsLower: lower case version of words } 
       key: function(ne) { return ne.ner + '~' + ne.representative.text; },
       predicate: function(m) { return m.text.length <= 80; }, //rule 1
       comparitor: function(a,b) {                                          // sort
@@ -217,11 +219,21 @@ var util = {
             //                                   rule 3                               rule 4
             if (v.ne.ner === 'PERSON' && v.words.containsWords(ne.representative.text.replace(/\b(?:Mr|Mrs|Miss|Ms|Dr)\.? /, ''))) return p;
           };
-        };
-        if (ne.ner === 'ORGANIZATION') {
+        } else if (ne.ner === 'EMAIL') {
+          var text = ne.representative.text.toLowerCase();
+          var pos = text.indexOf('@');
+          if (pos > 0) {
+            text = text.substring(0, pos).replace(/[^a-zA-Z]+/, ' ');
+            for (p in this.map) {
+              var v = this.map[p];
+              //                                   rule 5
+              if (v.ne.ner === 'PERSON' && v.wordsLower.containsWords(text)) return p;
+            };
+          }
+        } else if (ne.ner === 'ORGANIZATION') {
           for (p in this.map) {
             var v = this.map[p];
-            //                                          rule 5                                   rule 6
+            //                                          rule 6                                   rule 7
             if (v.ne.ner === 'ORGANIZATION' && (v.words.containsWords(ne.representative.text) || util.isAcronym(ne.representative.text, v.ne.representative.text))) return p;
           };
         };
@@ -233,11 +245,16 @@ var util = {
         if (p === this.NOT_FOUND) {
           // save first mention
           var words = this.EMPTY_SET;
+          var wordsLower = this.EMPTY_SET;
           if (ne.ner === 'PERSON' || ne.ner === 'ORGANIZATION') {
             words = new Set();
-            words.addWords(ne.representative.text); // rules 3 & 5
+            words.addWords(ne.representative.text); // rules 3 & 6
           };
-          this.map[k] = { ne: ne, words: words };
+          if (ne.ner === 'PERSON') {
+            wordsLower = new Set();
+            wordsLower.addWords(ne.representative.text.toLowerCase()); // rule 5
+          };
+          this.map[k] = { ne: ne, words: words, wordsLower: wordsLower };
         } else {
           // append this ne (including its corefs) as corefs to previous mention
           var prev = this.map[p].ne;
@@ -549,7 +566,7 @@ function Controller() {
   
   // map multiple named entity types used by the different NERs to one label and class name (the first in the list) used in the UI
   this.tableConfig = [
-    { parent : $('#people'), classes : [ 'PERSON', 'MISC' ], label : 'Person' },
+    { parent : $('#people'), classes : [ 'PERSON', 'EMAIL', 'MISC' ], label : 'Person' },
     { parent : $('#organizations'), classes : [ 'ORGANIZATION', 'UNKNOWN' ], label : 'Organization' },
     { parent : $('#locations'), classes : [ 'LOCATION' ], label : 'Location' },
     { parent : $('#dates'), classes : [ 'DATE', 'TIME', 'DURATION', 'SET' ], label : 'Date, time, duration' },

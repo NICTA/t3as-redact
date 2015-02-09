@@ -39,6 +39,8 @@ import javax.ws.rs.{ApplicationPath, Consumes, GET, POST, Path, Produces, QueryP
 import javax.ws.rs.core.{Context, MediaType, Response, StreamingOutput}
 import javax.ws.rs.ext.Providers
 
+import org.t3as.redact.nlp.EmailNER.appendEmailAddresses
+
 object RedactService {
   
   /** The NLP models contained here are very expensive to initialize, so we do it once on servelet startup.
@@ -63,7 +65,7 @@ object RedactService {
 
   /** class configured in web.xml */
   class MyContextListener extends ServletContextListener {
-    override def contextInitialized(event: ServletContextEvent) = NLPModelsSingleton.init(new NLPModels) // test code could init with subclass NLPModels
+    override def contextInitialized(event: ServletContextEvent) = NLPModelsSingleton.init(new NLPModels) // test code could init with subclass of NLPModels
     override def contextDestroyed(event: ServletContextEvent) = NLPModelsSingleton.close
   }
 
@@ -112,11 +114,7 @@ class RedactService {
   def echo(@FormDataParam("pdfFile") in: InputStream): Response = {
     log.debug("echo...")
     val stream = new StreamingOutput {
-      // invoked after redact has returned
-      override def write(os: OutputStream) = {
-        copy(in, os)
-        os.close
-      }
+      override def write(os: OutputStream) = copy(in, os)
     }
     Response.ok(stream).build
   }
@@ -128,23 +126,10 @@ class RedactService {
   def redact(@FormDataParam("pdfFile") in: InputStream, @FormDataParam("redact") redact: String): Response = {
     val r = mapper.readValue(redact, classOf[Redact]) // deserialize JSON
     log.debug(s"redact: r = $r")
-
-    // TODO: can we use memory rather than tmp files?
-    val tmpIn = createTempFile("redactService", "redactIn")
-    val tmpOut = createTempFile("redactService", "redactOut")
-    try {
-      copy(in, tmpIn)
-      Pdf.redact(tmpIn, tmpOut, r.redact)
-      val stream = new StreamingOutput {
-        // invoked after redact has returned
-        override def write(os: OutputStream) = {
-          copy(tmpOut, os)
-          os.close
-          tmpOut.delete
-        }
-      }
-      Response.ok(stream).build
-    } finally tmpIn.delete
+    val stream = new StreamingOutput {
+      override def write(os: OutputStream) = Pdf.redact(in, os, r.redact)
+    }
+    Response.ok(stream).build
   }
 
   // URL: http://localhost:8080/redact/rest/v1.0/corenlp/json?in=Bill%20hit%20Joe
@@ -152,14 +137,14 @@ class RedactService {
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   def corenlpGetJson(@QueryParam("in") in: String, @QueryParam("withCoref") withCoref: Boolean = false) =
-    NLPModelsSingleton.get.coreNlp.processResult(in, withCoref)
+    appendEmailAddresses(NLPModelsSingleton.get.coreNlp.processResult(in, withCoref), in)
 
   @Path("corenlp/json")
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   def corenlpPostJson(in: Input) =
-    NLPModelsSingleton.get.coreNlp.processResult(in.text, in.withCoref)
+    appendEmailAddresses(NLPModelsSingleton.get.coreNlp.processResult(in.text, in.withCoref), in.text)
 
   @Path("corenlp/xml")
   @GET
@@ -171,12 +156,12 @@ class RedactService {
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   def opennlpGetJson(@QueryParam("in") in: String, @QueryParam("withCoref") withCoref: Boolean = false) =
-    NLPModelsSingleton.get.openNlp.processResult(in)
+    appendEmailAddresses(NLPModelsSingleton.get.openNlp.processResult(in), in)
 
   @Path("opennlp/json")
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   def opennlpPostJson(in: Input) =
-    NLPModelsSingleton.get.openNlp.processResult(in.text)
+    appendEmailAddresses(NLPModelsSingleton.get.openNlp.processResult(in.text), in.text)
 }
