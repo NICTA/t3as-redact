@@ -27,8 +27,8 @@
               <button class="btn btn-link dropdown-toggle" type="button" data-toggle="dropdown">File <span class="caret"></span></button>
               <ul class="dropdown-menu" role="menu">
                 <li role="presentation"><a role="menuitem" tabindex="-1" href="#" onclick="controller.showOpenFileDialog()">Open</a></li>
-                <li role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#" onclick="controller.closeFile()">Close</a></li>
-                <li role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#">Export</a></li>
+                <li id="cmd-close" role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#" onclick="controller.closeFile()">Close</a></li>
+<!--                 <li role="presentation" class="disabled"><a role="menuitem" tabindex="-1" href="#">Export</a></li> -->
                 <li role="presentation" class="divider"></li>
                 <li role="presentation"><a role="menuitem" tabindex="-1" href="#" data-toggle="modal" data-target="#settings-dialog">Settings</a></li>
               </ul>
@@ -82,11 +82,11 @@
 
     <!-- Redactions view -->
     <div id="view-redactions" class="layout-view" style="display: none;">
-      <div class="spinner"></div>
-      <div id="view-redactions-sidebar" class="layout-col sidebar scroll-y">
-        <div class="generated-entities"></div>
+      <div id="view-redactions-sidebar" class="layout-col sidebar scroll-y"></div>
+      <div id="view-redactions-doc" class="layout-col main scroll-y" data-toggle="context">
+        <div class="spinner"></div>
+        <div class="generated-content"></div>
       </div>
-      <div id="view-redactions-doc" class="layout-col main scroll-y" data-toggle="context"></div>
       <div id="view-redactions-create-menu">
         <ul class="dropdown-menu" role="menu"></ul>
       </div>

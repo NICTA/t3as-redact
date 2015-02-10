@@ -636,7 +636,7 @@ function Controller() {
     return false;
   });
   
-  $("#view-redactions-doc").on('mouseup', function(e) {
+  $("#view-redactions-doc .generated-content").on('mouseup', function(e) {
     self.editNamedEntity(e, window.getSelection().getRangeAt(0));
     return false;
   });
@@ -670,25 +670,25 @@ Controller.prototype.openFile = function(pdfFile) {
   
   var spin = '#view-original .spinner';
   this.addSpinner(spin);
- 
+
+  // Select the 'Original' view tab and display the tabs
+  $('#btn-view-original').button('toggle');
+  $('#view-nav').fadeIn();
+
+  // Show the original PDF view
+  self.showView('view-original');
+  
   function echoSuccess(blob) {
     self.clearSpinner(spin); // TODO could handle this for both success & error in a $.ajax({ complete: function() {} })
     self.model.pdfFile = pdfFile;
     self.model.origPdfObjectURL = URL.createObjectURL(blob); // revoke in closeFile(), if done before then returning to the 'Original' tab shows no content
     $('#view-original-pdf').append($('<embed>').attr({type: 'application/pdf', src: self.model.origPdfObjectURL }));
 
-    // Select the 'Original' view tab and display the tabs
-    $('#btn-view-original').button('toggle');
-    $('#view-nav').fadeIn();
-
     // Enable the close command on the file menu
-    $('#cmd-close-doc').removeClass('disabled');
+    $('#cmd-close').removeClass('disabled');
     
     // Set the document name
     $('#filename').text(pdfFile.name)
-
-    // Show the original PDF view
-    self.showView('view-original');
 
     // finally extract then process text
     self.client.extractText(pdfFile, function(data) { self.processText(data); }, error);
@@ -705,7 +705,7 @@ Controller.prototype.closeFile = function() {
   if (this.model.origPdfObjectURL) URL.revokeObjectURL(this.model.origPdfObjectURL);
   if (this.model.redactedPdfObjectURL) URL.revokeObjectURL(this.model.redactedPdfObjectURL);
   this.model = {};
-  $('#view-original .spinner, #view-original-pdf, #view-redactions-sidebar .generated-entities, #view-redactions-doc, #view-export .spinner, #view-export-pdf').empty();
+  $('#view-original .spinner, #view-original-pdf, #view-redactions-sidebar, #view-redactions-doc .generated-content, #view-export .spinner, #view-export-pdf').empty();
   
   // Clear hidden form fields
   $('#file-upload-form input').val('');
@@ -714,7 +714,7 @@ Controller.prototype.closeFile = function() {
   $('#view-nav').fadeOut();
 
   // Disable the close command on the file menu
-  $('#cmd-close-doc').addClass('disabled');
+  $('#cmd-close').addClass('disabled');
 
   // Reset the title
   $('#filename').text('Text redaction')
@@ -729,7 +729,7 @@ Controller.prototype.processText = function(pages) {
   this.model.pageOffsets = new PageOffsets(pages);
   this.model.text = pages.join(this.model.pageOffsets.pageSeparator);
 
-  var spin = '#view-redactions .spinner';
+  var spin = '#view-redactions-doc .spinner';
   this.addSpinner(spin);
   
   function success(data) {
@@ -744,7 +744,7 @@ Controller.prototype.processText = function(pages) {
   var nerImpl = $('#settings-dialog input[name=nerImpl]:checked').attr('id');
   log.debug('Controller.processText: nerImpl =', nerImpl)
   switch (nerImpl) {
-  case 'nerImplCoreNLPWithCoref':
+  case 'nerImplCoreNLPCoref':
     this.client.coreNlpNERWithCoref(this.model.text, success, error);
     break;
   case 'nerImplCoreNLP':
@@ -769,7 +769,7 @@ Controller.prototype.updateUI = function(namedEntities) {
 Controller.prototype.populateEntities = function() {
   var self = this;
   
-  var elem = $('#view-redactions-sidebar .generated-entities'); 
+  var elem = $('#view-redactions-sidebar'); 
   elem.empty();
   elem.append($.map(this.tableConfig, function(tblCfg, tblCfgIdx) {
     return $('<div>').addClass('type ' + tblCfg.classes[0].toLowerCase())
@@ -798,7 +798,7 @@ Controller.prototype.populateEntities = function() {
   function numCorefs(entity) { return self.model.namedEntities[entity.attr('neIdx')].coRefs.length; };
   
   function deselect(entities) {
-    var doc = $('#view-redactions-doc');
+    var doc = $('#view-redactions-doc .generated-content');
     entities.add($('.entity-name, li', entities)).add($('span', doc)).removeClass('selected half-selected');
     doc.removeClass('highlight');
     
@@ -815,7 +815,7 @@ Controller.prototype.populateEntities = function() {
     var sel = $(selectedIdx === 0 ? '.entity-name' : '.entity-corefs li:nth-child(' + selectedIdx + ')', entity); // 1st child is 1
     entity.add(sel).addClass('selected');
 
-    var doc = $('#view-redactions-doc');
+    var doc = $('#view-redactions-doc .generated-content');
     doc.addClass('highlight');
     
     // mark unique exact match 'selected', match other ref's 'half-selected'
@@ -941,7 +941,7 @@ Controller.prototype.populateEntities = function() {
     var cb = $(this);
     var entity = cb.closest('.entity');
     var neIdx = entity.attr('neIdx');
-    var x = $('#view-redactions-doc span[neidx=' + neIdx + ']').add(entity);
+    var x = $('#view-redactions-doc .generated-content span[neidx=' + neIdx + ']').add(entity);
     if (cb.is(":checked")) x.addClass('redacted');
     else x.removeClass('redacted');
   });
@@ -950,7 +950,7 @@ Controller.prototype.populateEntities = function() {
 };
 
 Controller.prototype.populateProcessedText = function() {
-  var elem = $('#view-redactions-doc');
+  var elem = $('#view-redactions-doc .generated-content');
   elem.empty();
   elem.append(this.markup());
 };
@@ -997,7 +997,7 @@ Controller.prototype.editNamedEntity = function(mouseEvent, range) {
 //  var editType = $('#neEdit input:checked').attr('value');
   log.debug('Controller.editNamedEntity: range =', range);
   if (range.endOffset > range.startOffset || range.startContainer !== range.endContainer) {
-    var elem = $('#view-redactions-doc');
+    var elem = $('#view-redactions-doc .generated-content');
     var str = util.getTextOffset(range.startOffset, range.startContainer, elem);
     var strNeRef = util.findNeRef(this.model.namedEntities, str);
     var end = util.getTextOffset(range.endOffset, range.endContainer, elem);
@@ -1035,7 +1035,7 @@ Controller.prototype.editNamedEntity = function(mouseEvent, range) {
 };
 
 Controller.prototype.showEntityMenu = function(mouseEvent, menu) {
-  var doc = $('#view-redactions-doc'); 
+  var doc = $('#view-redactions-doc .generated-content'); 
   var cm = doc.data('context');
   if (cm) cm.destroy(); // remove current menu
   doc.contextmenu({
