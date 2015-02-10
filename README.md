@@ -88,7 +88,7 @@ Data structure for the redaction request:
 
     case class RedactItem(page: Int, start: Int, end: Int)
     case class Redact(redact: List[RedactItem])
-Note that an item to be redacted is specified by page based character offsets into the extracted text. This won't work if the user starts at step 2 or modified the text at step 2. Page number is 1 based (PDF convention), char offsets are 0 based.
+Note that an item to be redacted is specified by page based character offsets into the extracted text. Page number is 1 based (PDF convention), char offsets are 0 based.
 
 
 See also: [t3as-pdf](https://github.com/NICTA/t3as-pdf) which provides the PDF functionality used by this project.
