@@ -175,7 +175,7 @@ var util = {
   /**
    * Heuristic post processing of NER result.
    * Rules:<ol>
-   * <li>delete any items longer than 80 chars
+   * <li>delete any items longer than maxLength chars
    * <li>treat subsequent item of same type and same text as coref
    * <li>if type is PERSON the 'same text' criteria is relaxed so that if the subsequent item contains only words contained in the first mention it is considered a match,
    *     so that 'Abbott' or 'Tony' will be taken to be a reference to a preceding 'Tony Abbott'.
@@ -197,14 +197,14 @@ var util = {
    * First result ne has: start = 64, end = 76 and coref[1] is the same!
    * Oh, it's not my bug, that is in the data produced by CoreNLP. Looks like we have to filter that!
    */
-  postProcess: function(namedEntities) {
+  postProcess: function(namedEntities, maxLength) {
     log.debug('util.postProcess:', 'namedEntities =', namedEntities);
     var self = this;
     
     var neMap = {
       map: {}, // key -> { ne: the ne, words: Set of words in ne.representative.text, wordsLower: lower case version of words } 
       key: function(ne) { return ne.ner + '~' + ne.representative.text; },
-      predicate: function(m) { return m.text.length <= 80; }, //rule 1
+      predicate: function(m) { return m.text.length <= maxLength; }, //rule 1
       comparitor: function(a,b) {                                          // sort
         var i = a.representative.start - b.representative.start;           // start ascending
         return i != 0 ? i : b.representative.end - a.representative.end;   // then end descending (to get longest one first)
@@ -561,6 +561,8 @@ function Controller() {
     }
   });
   
+  this.maxInt = 9007199254740992; // http://ecma262-5.com/ELS5_HTML.htm#Section_8.5
+  
   this.model = {};
   var self = this;
   
@@ -734,7 +736,7 @@ Controller.prototype.processText = function(pages) {
   
   function success(data) {
     self.clearSpinner(spin);
-    self.updateUI($('#nerPostProcess').is(':checked') ? util.postProcess(data.namedEntities) : data.namedEntities);
+    self.updateUI(data.namedEntities, 80);
   };
   
   function error() {
@@ -760,8 +762,8 @@ Controller.prototype.processText = function(pages) {
   };
 };
 
-Controller.prototype.updateUI = function(namedEntities) {
-  this.model.namedEntities = namedEntities;
+Controller.prototype.updateUI = function(namedEntities, maxLength) {
+  this.model.namedEntities = $('#nerPostProcess').is(':checked') ? util.postProcess(namedEntities, maxLength) : namedEntities;
   this.populateProcessedText();
   this.populateEntities();  
 };
@@ -1051,7 +1053,7 @@ Controller.prototype.createEntity = function(ner) {
   log.debug('Controller.createEntity: ner =', ner, 'newNe =', newNe);
   newNe.ner = ner;
   nes.push(newNe);
-  this.updateUI(nes);
+  this.updateUI(nes, this.maxInt);
 };
 
 Controller.prototype.deleteEntity = function() {
@@ -1060,7 +1062,7 @@ Controller.prototype.deleteEntity = function() {
   log.debug('Controller.deleteEntity: r =', r);  
   if (r.corefIdx === -1) nes.splice(r.neIdx, 1);
   else nes[r.neIdx].coRefs.splice(r.corefIdx, 1);
-  this.updateUI(nes);
+  this.updateUI(nes, this.maxInt);
 };
 
 Controller.prototype.editEntity = function(ner) {
@@ -1075,7 +1077,7 @@ Controller.prototype.editEntity = function(ner) {
   } else {
     ne.coRefs[r.corefIdx] = newNe.representative;
   };
-  this.updateUI(nes);
+  this.updateUI(nes, this.maxInt);
 };
 
 Controller.prototype.redactPdf = function() {

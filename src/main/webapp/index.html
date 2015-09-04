@@ -5,9 +5,8 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Text redaction</title>
-    <link rel="icon" type="image/ico" href="http://www.nicta.com.au/__data/assets/file/0014/28031/NICTALogo.ico">
-    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
-<!--     <link rel="stylesheet" type="text/css" href="css/context.bootstrap.css"> See: http://lab.jakiestfu.com/contextjs/ -->
+    <link rel="icon" type="image/ico" href="images/nicta-favicon.ico">
+    <link rel="stylesheet" type="text/css" href="css/bootstrap-3.3.1.min.css">
     <link rel="stylesheet" type="text/css" href="css/styles.css">
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
@@ -120,10 +119,10 @@
           <div class="modal-body">
             <span class="nlp-heading">NLP implementation</span>
             <br/>
-            <input type="radio" name="nerImpl" id="nerImplCoreNLP"/><label for="nerImplCoreNLP">Stanford CoreNLP NER</label>
+            <input type="radio" name="nerImpl" id="nerImplCoreNLP" checked="checked"/><label for="nerImplCoreNLP">Stanford CoreNLP NER</label>
             <input type="radio" name="nerImpl" id="nerImplCoreNLPCoref"/><label for="nerImplCoreNLPCoref">Stanford CoreNLP NER + Coref</label>
             <br>
-            <input type="radio" name="nerImpl" id="nerImplOpenNLP" checked="checked"/><label for="nerImplOpenNLP">OpenNLP NER</label>
+            <input type="radio" name="nerImpl" id="nerImplOpenNLP"/><label for="nerImplOpenNLP">OpenNLP NER</label>
             <br>
             <input type="radio" name="nerImpl" id="nerImplNicta"/><label for="nerImplNicta">NICTA NER</label>
             <br>
@@ -133,8 +132,8 @@
         </div>
       </div>
     </div>    
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <script src="js/jquery-2.1.0.min.js"></script>
+    <script src="js/bootstrap-3.3.1.min.js"></script>
     <script src="js/bootstrap-contextmenu.js"></script> <!-- See: https://github.com/sydcanem/bootstrap-contextmenu -->
     <script src="js/redaction-ui.js"></script>
   </body>
