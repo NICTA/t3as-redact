@@ -122,13 +122,13 @@ Data structure for the result of named entity recognition:
     case class Mention(start: Int, end: Int, text: String)
     case class NamedEntity(representative: Mention, ner: String, coRefs: List[Mention])
     case class Result(namedEntities: List[NamedEntity])
-so each named entity has a `representative` mention, a type `ner` which can be "PERSON", "LOCATION" etc. and a list of other mentions `coRefs` (which is empty unless the selected NLP implimentation is `Stanford CoreNLP NER + Coref `.
+so each named entity has a `representative` mention, a type `ner` which can be "PERSON", "LOCATION" etc. and a list of other mentions `coRefs` (which is empty unless the selected NLP implimentation is `Stanford CoreNLP NER + Coref `).
 
 If `Heuristic post-processing` is selected then code in the UI modifies this data, deleting some NamedEntity items and replacing some with coRefs.
 
 Data structure for the redaction request:
 
-    case class RedactItem(page: Int, start: Int, end: Int)
+    case class RedactItem(page: Int, start: Int, end: Int, reason: String)
     case class Redact(redact: List[RedactItem])
 Note that an item to be redacted is specified by page based character offsets into the extracted text. Page number is 1 based (PDF convention), char offsets are 0 based.
 
