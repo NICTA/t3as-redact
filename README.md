@@ -16,11 +16,6 @@ The implementation consists of:
 - RESTful web services; and
 - an HTML5 user interface.
 
-The web services are:
-- extractText: upload PDF and return text extracted from it;
-- NLP services: upload text and return named entities found by one of three NLP packages;
-- redact: upload PDF and redaction specified as character offsets into extracted text and return redacted PDF.
-
 ### Named Entity Recognition
 
 The redaction application uses automatic Named Entity Recognition to highlight names of people, organisations, locations, dates/times/durations and numbers; which are likely targets for redaction.
@@ -111,13 +106,18 @@ To work on a new PDF file, either:
 - `File > Close` then drag a new PDF file; or
 - `File > Open`.
 
-TODO:
-- support separate markup and review processes prior to actual redaction (maybe related to next item)
-- interoperate with Adobe tools by using standard metadata for redactions 
+## Web Services
+
+The [Swagger](http://swagger.io/) UI available at http://redact.t3as.org/swagger-ui:
+- documents the web services; and
+- provides a user interface allowing each web service to be called without programming.
+
+Details from the following section are also pertinent to the web services.
+
 
 ## Implementation
 
-Data structure for the result of named entity recognition:
+The data structure for the result of named entity recognition is:
     
     case class Mention(start: Int, end: Int, text: String)
     case class NamedEntity(representative: Mention, ner: String, coRefs: List[Mention])
@@ -126,7 +126,7 @@ so each named entity has a `representative` mention, a type `ner` which can be "
 
 If `Heuristic post-processing` is selected then code in the UI modifies this data, deleting some NamedEntity items and replacing some with coRefs.
 
-Data structure for the redaction request:
+The data structure for the redaction request is:
 
     case class RedactItem(page: Int, start: Int, end: Int, reason: String)
     case class Redact(redact: List[RedactItem])
@@ -134,6 +134,12 @@ Note that an item to be redacted is specified by page based character offsets in
 
 
 See also: [t3as-pdf](https://github.com/NICTA/t3as-pdf) which provides the PDF functionality used by this project.
+
+## To do
+
+- support separate markup and review processes prior to actual redaction (maybe related to next item)
+- interoperate with Adobe tools by using standard metadata for redactions 
+
 
 ## Legal
 

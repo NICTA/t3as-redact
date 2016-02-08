@@ -22,24 +22,21 @@ package org.t3as.redact.service
 
 import java.io.{InputStream, OutputStream, Closeable}
 import java.io.File.createTempFile
-
 import org.glassfish.jersey.filter.LoggingFilter
 import org.glassfish.jersey.media.multipart.{FormDataParam, MultiPartFeature}
 import org.glassfish.jersey.server.ResourceConfig
 import org.slf4j.LoggerFactory
 import org.t3as.pdf.Pdf
 import org.t3as.redact.nlp.{CoreNlpModels, OpenNlpModels}
-import org.t3as.redact.nlp.Param.{Extract, Input, Redact}
+import org.t3as.redact.nlp.Param.{Extract, Input, Redact, Result}
 import org.t3as.redact.util.CopyUtil.copy
-
 import com.fasterxml.jackson.databind.ObjectMapper
-
 import javax.servlet.{ServletContextEvent, ServletContextListener}
 import javax.ws.rs.{ApplicationPath, Consumes, GET, POST, Path, Produces, QueryParam}
 import javax.ws.rs.core.{Context, MediaType, Response, StreamingOutput}
 import javax.ws.rs.ext.Providers
-
 import org.t3as.redact.nlp.EmailNER.appendEmailAddresses
+import io.swagger.annotations.{ Api, ApiOperation, ApiParam }
 
 object RedactService {
   
@@ -73,12 +70,13 @@ object RedactService {
   @ApplicationPath("/")
   class MyApplication extends ResourceConfig(
     classOf[MultiPartFeature], // required by MediaType.MULTIPART_FORM_DATA
-    classOf[LoggingFilter])
+    classOf[LoggingFilter])  
 }
 
 /** Jersey instantiates multiple instances
  *  package configured in web.xml
  */
+@Api("redaction")
 @Path("/v1.0")
 class RedactService {
   import RedactService._
@@ -95,6 +93,9 @@ class RedactService {
     mapper = p.getContextResolver(classOf[ObjectMapper], MediaType.APPLICATION_JSON_TYPE).getContext(classOf[ObjectMapper])
   }
 
+  @ApiOperation(
+    value = "extract text from PDF",
+    notes = "returns text from each page")
   @Path("extractText")
   @POST
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
@@ -107,6 +108,9 @@ class RedactService {
     } finally tmp.delete
   }
 
+  @ApiOperation(
+    value = "echo PDF",
+    notes = "the binary response is a copy of the request data (used by UI to display the PDF)")
   @Path("echo")
   @POST
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
@@ -119,11 +123,19 @@ class RedactService {
     Response.ok(stream).build
   }
   
+  @ApiOperation(
+    value = "redact PDF",
+    notes = "inputs: a PDF file and a JSON string containing redaction instructions; Output: redacted PDF")
   @Path("redact")
   @POST
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
   @Produces(Array("application/pdf"))
-  def redact(@FormDataParam("pdfFile") in: InputStream, @FormDataParam("redact") redact: String): Response = {
+  def redact(
+    @FormDataParam("pdfFile") in: InputStream,
+    
+    @ApiParam("""{ redact: [ { page: 1, start: 10, end: 20, reason: "test" }, ... ] }""")
+    @FormDataParam("redact") redact: String
+  ): Response = {
     val r = mapper.readValue(redact, classOf[Redact]) // deserialize JSON
     log.debug(s"redact: r = $r")
     val stream = new StreamingOutput {
@@ -132,13 +144,20 @@ class RedactService {
     Response.ok(stream).build
   }
 
-  // URL: http://localhost:8080/redact/rest/v1.0/corenlp/json?in=Bill%20hit%20Joe
+  @ApiOperation(
+    value = "identify named entities in the input text",
+    notes = "uses Stanford CoreNLP")
   @Path("corenlp/json")
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def corenlpGetJson(@QueryParam("in") in: String, @QueryParam("withCoref") withCoref: Boolean = false) =
-    appendEmailAddresses(NLPModelsSingleton.get.coreNlp.processResult(in, withCoref), in)
+  def corenlpGetJson(
+    @ApiParam("input text") @QueryParam("in") in: String,
+    @ApiParam("whether to apply co-reference identification - if false coRefs arrays in the result will be empty") @QueryParam("withCoref") withCoref: Boolean = false
+  ) = appendEmailAddresses(NLPModelsSingleton.get.coreNlp.processResult(in, withCoref), in)
 
+  @ApiOperation(
+    value = "identify named entities in the input text",
+    notes = "uses Stanford CoreNLP. withCoref = true applies CoreNLP's co-reference identification - if false coRefs arrays in the result will be empty")
   @Path("corenlp/json")
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -146,18 +165,31 @@ class RedactService {
   def corenlpPostJson(in: Input) =
     appendEmailAddresses(NLPModelsSingleton.get.coreNlp.processResult(in.text, in.withCoref), in.text)
 
+  @ApiOperation(
+    value = "identify named entities in the input text",
+    notes = "uses Stanford CoreNLP")
   @Path("corenlp/xml")
   @GET
   @Produces(Array(MediaType.TEXT_XML))
-  def corenlpGetXml(@QueryParam("in") in: String, @QueryParam("withCoref") withCoref: Boolean = false) =
-    NLPModelsSingleton.get.coreNlp.processXml(in, withCoref)
+  def corenlpGetXml(
+    @ApiParam("input text") @QueryParam("in") in: String,
+    @ApiParam("whether to apply co-reference identification - if false coRefs arrays in the result will be empty") @QueryParam("withCoref") withCoref: Boolean = false
+  ) = NLPModelsSingleton.get.coreNlp.processXml(in, withCoref)
 
+  @ApiOperation(
+    value = "identify named entities in the input text",
+    notes = "uses OpenNLP")
   @Path("opennlp/json")
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def opennlpGetJson(@QueryParam("in") in: String, @QueryParam("withCoref") withCoref: Boolean = false) =
-    appendEmailAddresses(NLPModelsSingleton.get.openNlp.processResult(in), in)
+  def opennlpGetJson(
+    @ApiParam("input text") @QueryParam("in") in: String, 
+    @ApiParam("not used - no co-reference identification, coRefs arrays in the result always empty") @QueryParam("withCoref") withCoref: Boolean = false
+  ) = appendEmailAddresses(NLPModelsSingleton.get.openNlp.processResult(in), in)
 
+  @ApiOperation(
+    value = "identify named entities in the input text",
+    notes = "uses OpenNLP, withCoref is not used, coRefs arrays in the result always empty")
   @Path("opennlp/json")
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
