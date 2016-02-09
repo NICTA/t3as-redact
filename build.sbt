@@ -13,10 +13,12 @@ homepage := Some(url("https://github.com/NICTA/t3as-redact"))
 
 scalaVersion := "2.11.7"
 
-scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
+// stanford-corenlp-3.6.0 is built for jvm-1.8, so we may as well be too
+scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-target:jvm-1.8")
 
 libraryDependencies ++= Seq(
   "org.t3as" %% "t3as-pdf" % "0.3",
+  "org.scala-lang.modules" %% "scala-xml" % "1.0.4",
   "org.apache.opennlp" % "opennlp-tools" % "1.6.0",
   "com.thetransactioncompany" % "cors-filter" % "2.5",
   "org.slf4j" % "slf4j-api" % "1.7.6",
@@ -40,8 +42,11 @@ libraryDependencies ++= Seq(
   "com.fasterxml.jackson.module" %% "jackson-module-scala",
   "com.fasterxml.jackson.core" % "jackson-annotations",
   "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-base",
-  "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-json-provider"
-  ) map (_ % "2.6.3")
+  "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-json-provider",
+  "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml",
+  "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-joda"
+  ) map (_ % "2.6.3") // jersey & swagger dependencies are older but evicting old for new appears to work
 
 libraryDependencies ++= Seq(
    "io.swagger" %% "swagger-scala-module" % "1.0.0",
