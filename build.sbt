@@ -108,13 +108,22 @@ releaseProcess := Seq[ReleaseStep](
   pushChanges
 )
 
+// customization for: sbt dumpLicenseReport; filling in otherwise "unknown" licenses and selecting the LicenseCategory where there are multiple choices
+
 // does s start with any of the prefixes?
 def hasPrefix(s: String, prefixes: String*) = prefixes.exists(s.startsWith)
 
 licenseOverrides := {
-    case DepModuleInfo(org, _, _) if hasPrefix(org, "org.apache", "com.fasterxml", "com.google.guava", "org.javassist") => LicenseInfo(LicenseCategory.Apache, "The Apache Software License, Version 2.0", "http://www.apache.org/licenses/LICENSE-2.0.txt")
-    case DepModuleInfo(org, _, _) if hasPrefix(org, "com.thoughtworks.paranamer") => LicenseInfo(LicenseCategory.BSD, "BSD-Style", "http://www.opensource.org/licenses/bsd-license.php")
-    case DepModuleInfo(org, _, _) if hasPrefix(org, "javax.", "org.jvnet.mimepull", "org.glassfish") => LicenseInfo(LicenseCategory.GPLClasspath, "CDDL + GPLv2 with classpath exception", "https://glassfish.dev.java.net/nonav/public/CDDL+GPL.html")
-    case DepModuleInfo(org, _, _) if hasPrefix(org, "ch.qos.logback") => LicenseInfo(LicenseCategory.LGPL, "EPL + GNU Lesser General Public License", "http://logback.qos.ch/license.html")
-    case DepModuleInfo(org, _, _) if hasPrefix(org, "org.slf4j") => LicenseInfo(LicenseCategory.MIT, "MIT License", "http://www.slf4j.org/license.html")
+    case DepModuleInfo(org, _, _) if hasPrefix(org, "org.apache", "com.fasterxml", "com.google.guava", "org.javassist", "io.swagger", "xalan", "xerces", "xml-apis") =>
+      LicenseInfo(LicenseCategory.Apache, "The Apache Software License, Version 2.0", "http://www.apache.org/licenses/LICENSE-2.0.txt")
+    case DepModuleInfo(org, _, _) if hasPrefix(org, "com.thoughtworks.paranamer")
+      => LicenseInfo(LicenseCategory.BSD, "BSD-Style", "http://www.opensource.org/licenses/bsd-license.php")
+    case DepModuleInfo(org, _, _) if hasPrefix(org, "javax.", "org.jvnet.mimepull", "org.glassfish")
+      => LicenseInfo(LicenseCategory.GPLClasspath, "CDDL + GPLv2 with classpath exception", "https://glassfish.dev.java.net/nonav/public/CDDL+GPL.html")
+    case DepModuleInfo(org, _, _) if hasPrefix(org, "ch.qos.logback")
+      => LicenseInfo(LicenseCategory.LGPL, "EPL + GNU Lesser General Public License", "http://logback.qos.ch/license.html")
+    case DepModuleInfo(org, _, _) if hasPrefix(org, "com.google.code.findbugs")
+      => LicenseInfo(LicenseCategory.LGPL, "GNU Lesser General Public License", "http://www.gnu.org/licenses/lgpl.html")
+    case DepModuleInfo(org, _, _) if hasPrefix(org, "org.slf4j")
+      => LicenseInfo(LicenseCategory.MIT, "MIT License", "http://www.slf4j.org/license.html")
   }
