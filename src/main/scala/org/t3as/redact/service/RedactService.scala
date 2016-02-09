@@ -133,7 +133,7 @@ class RedactService {
   def redact(
     @FormDataParam("pdfFile") in: InputStream,
     
-    @ApiParam("""{ redact: [ { page: 1, start: 10, end: 20, reason: "test" }, ... ] }""")
+    @ApiParam("""{ "redact": [ { "page": 1, "start": 10, "end": 20, "reason": "test" }, ... ] }""")
     @FormDataParam("redact") redact: String
   ): Response = {
     val r = mapper.readValue(redact, classOf[Redact]) // deserialize JSON
